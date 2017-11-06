@@ -1,0 +1,94 @@
+---
+
+- name: Create Docker Registry UNIX group
+  group:
+    name: '{{ docker_registry__group }}'
+    state: 'present'
+    system: True
+
+- name: Create Docker Registry UNIX account
+  user:
+    name: '{{ docker_registry__user }}'
+    group: '{{ docker_registry__group }}'
+    home: '{{ docker_registry__home }}'
+    comment: '{{ docker_registry__comment }}'
+    shell: '{{ docker_registry__shell }}'
+    state: 'present'
+    system: True
+
+- name: Create required directories
+  file:
+    name: '{{ item.path }}'
+    state: 'directory'
+    owner: '{{ item.owner }}'
+    group: '{{ item.group }}'
+    mode: '{{ item.mode }}'
+  with_items:
+
+    - path: '{{ docker_registry__config_path | dirname }}'
+      owner: 'root'
+      group: 'root'
+      mode: '0755'
+
+    - path: '{{ docker_registry__storage_dir | dirname }}'
+      owner: 'root'
+      group: 'root'
+      mode: '0755'
+
+    - path: '{{ docker_registry__storage_dir }}'
+      owner: '{{ docker_registry__user }}'
+      group: '{{ docker_registry__group }}'
+      mode: '{{ docker_registry__storage_mode }}'
+
+- name: Clone Docker Registry source code
+  git:
+    repo: '{{ docker_registry__upstream_git_repo }}'
+    dest: '{{ docker_registry__upstream_git_dest }}'
+    version: '{{ docker_registry__upstream_git_version }}'
+  become: True
+  become_user: '{{ docker_registry__user }}'
+  register: docker_registry__register_source
+
+- name: Build Docker Registry binaries
+  command: 'make clean binaries'
+  args:
+    chdir: '{{ docker_registry__upstream_git_dest }}'
+  become: True
+  become_user: '{{ docker_registry__user }}'
+  when: docker_registry__register_source is changed
+  register: docker_registry__register_binary
+
+- name: Install Docker Registry binary
+  copy:
+    src: '{{ docker_registry__upstream_git_dest + "/bin/registry" }}'
+    dest: '/usr/local/sbin/docker-registry'
+    remote_src: True
+    owner: 'root'
+    group: 'root'
+    mode: '0755'
+  when: docker_registry__register_binary is changed
+
+- name: Generate Docker Registry configuration
+  template:
+    src: 'etc/docker-registry/config.yml.j2'
+    dest: '{{ docker_registry__config_path }}'
+    owner: 'root'
+    group: '{{ docker_registry__group }}'
+    mode: '0640'
+  notify: [ 'Restart docker-registry' ]
+  register: docker_registry__register_config
+
+- name: Generate Docker Registry systemd unit
+  template:
+    src: 'etc/systemd/system/docker-registry.service.j2'
+    dest: '/etc/systemd/system/docker-registry.service'
+    owner: 'root'
+    group: 'root'
+    mode: '0644'
+  register: docker_registry__register_systemd
+
+- name: Enable Docker Registry service
+  systemd:
+    name: 'docker-registry'
+    daemon_reload: '{{ True if docker_registry__register_systemd is changed else omit }}'
+    enabled: True

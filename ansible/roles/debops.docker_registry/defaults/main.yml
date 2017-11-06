@@ -1,0 +1,182 @@
+---
+
+docker_registry__user: 'docker-registry'
+
+docker_registry__group: 'docker-registry'
+
+docker_registry__home: '{{ (ansible_local.root.home
+                            if (ansible_local|d() and ansible_local.root|d() and
+                                ansible_local.root.home|d())
+                            else "/var/local") + "/" + docker_registry__user }}'
+
+docker_registry__comment: 'Docker Registry'
+
+docker_registry__shell: '/usr/sbin/nologin'
+
+docker_registry__upstream_git_repo: 'https://github.com/docker/distribution'
+
+docker_registry__upstream_git_dest: '{{ docker_registry__home + "/go/src/"
+                                        + (docker_registry__upstream_git_repo.split("://")[1]) }}'
+
+docker_registry__upstream_git_version: 'v2.6.2'
+
+docker_registry__fqdn: 'registry.{{ docker_registry__domain }}'
+
+docker_registry__domain: '{{ ansible_local.core.domain
+                             if (ansible_local|d() and ansible_local.core|d() and
+                                 ansible_local.core.domain|d())
+                             else (ansible_domain if ansible_domain else ansible_hostname) }}'
+
+docker_registry__port: '5070'
+
+docker_registry__config_path: '/etc/docker-registry/config.yml'
+
+docker_registry__storage_dir: '{{ (ansible_local.root.data
+                                   if (ansible_local|d() and ansible_local.root|d() and
+                                       ansible_local.root.data|d())
+                                   else "/srv") + "/" + docker_registry__user + "/storage" }}'
+
+docker_registry__storage_mode: '0751'
+
+docker_registry__auth: True
+
+docker_registry__auth_name: 'docker-registry'
+
+docker_registry__auth_realm: 'Docker Registry'
+
+docker_registry__auth_users: '{{ ansible_local.core.admin_users
+                                 if (ansible_local|d() and ansible_local.core|d() and
+                                     ansible_local.core.admin_users|d())
+                                 else [] }}'
+
+# Based on: https://github.com/docker/distribution/blob/master/cmd/registry/config-example.yml
+docker_registry__original_config:
+
+  - name: 'original-config'
+    config:
+      version: '0.1'
+      log:
+        fields:
+          service: 'registry'
+      storage:
+        cache:
+          blobdescriptor: 'inmemory'
+      http:
+        addr: ':5000'
+        headers:
+          'X-Content-Type-Options': [ 'nosniff' ]
+      health:
+        storagedriver:
+          enabled: True
+          interval: '10s'
+          threshold: 3
+
+  - name: 'original-storage'
+    config:
+      storage:
+        filesystem:
+          rootdirectory: '/var/lib/registry'
+
+docker_registry__default_config:
+
+  - name: 'default-http'
+    config:
+      http:
+        addr: '127.0.0.1:{{ docker_registry__port }}'
+
+  - name: 'original-storage'
+    state: 'absent'
+
+  - name: 'default-storage'
+    config:
+      storage:
+        filesystem:
+          rootdirectory: '{{ docker_registry__storage_dir }}'
+        delete:
+          enabled: True
+
+  - name: 'default-gitlab'
+    state: 'present'
+    config:
+      auth:
+        token:
+          realm: 'https://code.deb8.gumed.edu.pl/jwt/auth'
+          service: 'container_registry'
+          issuer: 'gitlab-issuer'
+          rootcertbundle: '/etc/pki/realms/domain/default.crt'
+
+
+docker_registry__config: []
+
+docker_registry__group_config: []
+
+docker_registry__host_config: []
+
+docker_registry__combined_config: '{{ docker_registry__original_config
+                                      + docker_registry__default_config
+                                      + docker_registry__config
+                                      + docker_registry__group_config
+                                      + docker_registry__host_config }}'
+
+docker_registry__etc_services__dependent_list:
+
+  - name: 'docker-registry'
+    port: '{{ docker_registry__port }}'
+    comment: 'Docker Registry'
+
+docker_registry__nginx__dependent_maps:
+
+  - name: 'docker_registry_headers'
+    map: '$upstream_http_docker_distribution_api_version $docker_distribution_api_version'
+    mapping: |
+      ''     'registry/2.0';
+
+docker_registry__nginx__dependent_upstreams:
+
+  - name: 'docker-registry'
+    server: '127.0.0.1:{{ docker_registry__port }}'
+
+docker_registry__nginx__dependent_htpasswd:
+  name: '{{ docker_registry__auth_name }}'
+  users: '{{ docker_registry__auth_users }}'
+
+docker_registry__nginx__dependent_servers:
+
+  - name: '{{ docker_registry__fqdn }}'
+    filename: 'debops.docker_registry'
+    auth_basic: '{{ docker_registry__auth | bool }}'
+    auth_basic_realm: '{{ docker_registry__auth_realm }}'
+    auth_basic_name: '{{ docker_registry__auth_name }}'
+
+    options: |
+      client_max_body_size 0;
+
+      # required to avoid HTTP 411: see Issue #1486 (https://github.com/moby/moby/issues/1486)
+      chunked_transfer_encoding on;
+
+    location_list:
+
+      - pattern: '/'
+        options: |
+          return 307 /v2/;
+
+      - pattern: '/v2/'
+        options: |
+          # Do not allow connections from docker 1.5 and earlier
+          # docker pre-1.6.0 did not properly set the user agent on ping, catch "Go *" user agents
+          if ($http_user_agent ~ "^(docker\/1\.(3|4|5(?!\.[0-9]-dev))|Go ).*$" ) {
+            return 404;
+          }
+
+          ## If $docker_distribution_api_version is empty, the header will not be added.
+          ## See the map directive above where this variable is defined.
+          add_header 'Docker-Distribution-Api-Version' $docker_distribution_api_version always;
+
+          proxy_pass http://docker-registry;
+          proxy_set_header Host              $http_host;
+          proxy_set_header X-Real-IP         $remote_addr;
+          proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Host  $server_name;
+          proxy_set_header X-Forwarded-Proto $scheme;
+          proxy_read_timeout 900;
+        state: 'present'
