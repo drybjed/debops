@@ -614,6 +614,7 @@ server {
         include snippets/acme-challenge.conf;
 
 {%     endif                                                    %}
+        include snippets/ssl.conf;
 {% endif                                                        %}
 {# ---- end of nginx_tpl_ssl ---- #}
 {{ print_shared_nginx_server_block() }}
