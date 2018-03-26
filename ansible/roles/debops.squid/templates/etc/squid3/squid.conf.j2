@@ -1,0 +1,78 @@
+# {{ ansible_managed }}
+
+{% macro format_output(input, quote_spaces=False) %}
+{%   set input_filtered = [] %}
+{%   set found_spaces = [] %}
+{%   for element in input %}
+{%     if quote_spaces|bool and ' ' in element %}
+{%       set _ = input_filtered.append('"' + element + '"') %}
+{%       set _ = found_spaces.append(True) %}
+{%     else %}
+{%       set _ = input_filtered.append(element) %}
+{%     endif %}
+{%   endfor %}
+{%   if quote_spaces|bool and found_spaces %}
+configuration_includes_quoted_values on
+{%   endif %}
+{%   if input_filtered | length >= 5 %}
+{{ "%s %-12s %-6s %-6s %s" | format(input_filtered[0], input_filtered[1], input_filtered[2], input_filtered[3], input_filtered[4:] | join(' ')) -}}
+{%   elif input_filtered | length == 4 %}
+{{ "%s %-20s %-6s %s" | format(input_filtered[0], input_filtered[1], input_filtered[2], input_filtered[3:] | join(' ')) -}}
+{%   elif input_filtered | length == 3 %}
+{{ "%s %-12s %s" | format(input_filtered[0], input_filtered[1], input_filtered[2:] | join(' ')) -}}
+{%   else %}
+{{ input_filtered | join(' ') -}}
+{%   endif %}
+{%   if quote_spaces|bool and found_spaces %}
+
+configuration_includes_quoted_values off{%   endif %}
+{% endmacro %}
+{% macro print_config(prefix, data) %}
+{%   if data|d() %}
+{%     if data is string %}
+{{ format_output(prefix + [ data ]) }}
+{%     elif data is mapping %}
+{%       if data.state|d('present') != 'absent' %}
+{%         if data.comment|d() %}
+{{ data.comment | comment(prefix='', postfix='') -}}
+{%         endif %}
+{%         if data.value|d() %}
+{%           if data.value is string %}
+{{ format_output(prefix + [ data.name, data.value ], data.quote_spaces|d()) }}
+{%             if data.comment|d() and prefix|d() %}
+
+{%             endif %}
+{%           elif data.value is not string and data.value is not mapping %}
+{{ format_output(prefix + [ data.name ] + data.value, data.quote_spaces|d()) }}
+{%             if data.comment|d() and prefix|d() %}
+
+{%             endif %}
+{%           endif %}
+{%         elif data.options|d() %}
+{%           for thing in data.options %}
+{{ print_config(prefix + [ data.name ], thing) -}}
+{%           endfor %}
+{%           if data.comment|d() and prefix|d() %}
+
+{%           endif %}
+{%         else %}
+{{ format_output(prefix + [ data.name ], data.quote_spaces|d()) }}
+{%         endif %}
+{%       endif %}
+{%     elif data is not string and data is not mapping %}
+{%       for object in data %}
+{%         if object %}
+{{ print_config(prefix, object) -}}
+{%           if loop.last|bool %}
+
+{%           endif %}
+{%         endif %}
+{%       endfor %}
+{%     endif %}
+{%   endif %}
+{% endmacro %}
+{% for element in squid__configuration %}
+{%   if element|d() %}
+{{ print_config([], element) -}}
+{%   endif %}
+{% endfor %}

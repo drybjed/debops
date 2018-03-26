@@ -1,0 +1,19 @@
+---
+
+- name: Manage Squid proxy
+  hosts: [ 'debops_service_squid' ]
+  become: True
+
+  environment: '{{ inventory__environment | d({})
+                   | combine(inventory__group_environment | d({}))
+                   | combine(inventory__host_environment  | d({})) }}'
+
+  roles:
+
+    - role: debops.ferm
+      tags: [ 'role::ferm' ]
+      ferm__dependent_rules:
+        - '{{ squid__ferm__dependent_rules }}'
+
+    - role: debops.squid
+      tags: [ 'role::squid' ]

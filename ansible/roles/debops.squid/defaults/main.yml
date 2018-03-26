@@ -1,0 +1,341 @@
+---
+# .. vim: foldmarker=[[[,]]]:foldmethod=marker
+
+# debops.squid default variables [[[
+# ==================================
+
+# .. contents:: Sections
+#    :local:
+
+
+# APT package installation [[[
+# ----------------------------
+
+# .. envvar:: squid__base_packages [[[
+#
+# List of base APT packages to install for Squid support.
+squid__base_packages: [ "{{ 'squid' if ansible_distribution_release == 'stretch' else 'squid3' }} " ]
+
+                                                                   # ]]]
+# .. envvar:: squid__packages [[[
+#
+# List of additional APT packages to install with Squid.
+squid__packages: []
+                                                                   # ]]]
+
+# .. envvar:: squid__config_dir [[[
+#
+# Squid configuration dirctory path.
+squid__config_dir: "{{ '/etc/squid' if ansible_distribution_release == 'stretch' else '/etc/squid3' }}"
+                                                                   # ]]]
+# .. envvar:: squid__bin_path [[[
+#
+# Path to squid executable.
+squid__bin_path: "{{ '/usr/sbin/squid' if ansible_distribution_release == 'stretch' else '/usr/sbin/squid3' }}"
+                                                                   # ]]]
+# .. envvar:: squid__service_name [[[
+#
+# Name of the system service.
+squid__service_name: "{{ 'squid' if ansible_distribution_release == 'stretch' else 'squid3' }}"
+                                                                   # ]]]
+                                                                   # ]]]
+# Hostname and domain settings [[[
+# --------------------------------
+
+# .. envvar:: squid__fqdn [[[
+#
+# The Fully Qualified Domain Name of the Squid service. It will be displayed on
+# the Squid information and error pages.
+squid__fqdn: 'proxy.{{ squid__domain }}'
+
+                                                                   # ]]]
+# .. envvar:: squid__domain [[[
+#
+# The primary DNS domain used in the Squid configuration.
+squid__domain: '{{ ansible_domain if ansible_domain else ansible_hostname }}'
+
+                                                                   # ]]]
+# .. envvar:: squid__workers [[[
+#
+# Number of Squid worker threads to start.
+squid__workers: '{{ ansible_processor_vcpus }}'
+                                                                   # ]]]
+                                                                   # ]]]
+# TCP and UDP ports, network settings [[[
+# ---------------------------------------
+
+# .. envvar:: squid__port_http [[[
+#
+# The TCP port used by the Squid for HTTP forwarding connections, used by
+# normal network clients that connect to proxy directly.
+squid__port_http: '3128'
+
+                                                                   # ]]]
+# .. envvar:: squid__port_http_intercept [[[
+#
+# The TCP port used by the Squid for HTTP intercept connections, used by the
+# firewall routing connections from other ports transparently.
+squid__port_http_intercept: '3129'
+
+                                                                   # ]]]
+# .. envvar:: squid_-port_icp [[[
+#
+# The UDP port used by the Squid for Internet Cache Protocol communication.
+squid__port_icp: '3130'
+
+                                                                   # ]]]
+# .. envvar:: squid__port_https [[[
+#
+# The TCP port used by the Squid for HTTPS forwarding connections, used by
+# normal network clients that connect to proxy directly.
+squid__port_https: '3131'
+
+                                                                   # ]]]
+# .. envvar:: squid__firewall_tcp_http_ports [[[
+#
+# List of TCP ports configured in the ``iptables`` firewall to allow access to
+# the HTTP proxy.
+squid__firewall_tcp_http_ports:
+  - '{{ squid__port_http }}'
+  - '{{ squid__port_http_intercept }}'
+
+
+# .. envvar:: squid__firewall_tcp_https_ports [[[
+#
+# List of TCP ports configured in the ``iptables`` firewall to allow access to
+# the HTTPS proxy.
+squid__firewall_tcp_https_ports:
+  - '{{ squid__port_https }}'
+
+
+# .. envvar:: squid__firewall_udp_ports [[[
+#
+# List of UDP ports configured in the ``iptables`` firewall to allow access to
+# varous UDP-based proxy services.
+squid__firewall_udp_ports:
+  - '{{ squid__port_icp }}'
+
+
+# .. envvar:: squid__allow_tcp [[[
+#
+# List of IP addresses or CIDR subnets that can access TCP-based Squid services
+# (HTTP and HTTPS ports). If no entries are specified, anybody can access these
+# services through the firewall.
+squid__allow_tcp: []
+
+
+# .. envvar:: squid__allow_udp [[[
+#
+# List of IP addresses or CIDR subnets that can access UDP-based Squid
+# services. If no entries are specified, access will be denied.
+squid__allow_udp: []
+
+
+# Squid configuration options [[[
+# -------------------------------
+
+# .. envvar:: squid__acl_allow_localnet [[[
+#
+# List of IP addresses or CIDR networks which are considered as "local
+# networks" by the Squid Access Control Lists. These hosts will be allowed
+# access to the Squid proxy without any authentication.
+squid__acl_allow_localnet:
+  - '10.0.0.0/8'
+  - '172.16.0.0/12'
+  - '192.168.0.0/16'
+  - 'fc00::/7'
+  - 'fe80::/10'
+
+
+squid__config_auth: []
+
+squid__config_default_acl:
+  - name: 'acl'
+    options:
+
+      - name: 'SSL_ports'
+        value: [ 'port 443' ]
+
+      - name: 'Safe_ports'
+        options:
+          - name: 'port'
+            options:
+              - '80'
+              - '21'
+              - '443'
+              - '70'
+              - '210'
+              - '1025-65535'
+              - '280'
+              - '488'
+              - '591'
+              - '777'
+
+      - name: 'CONNECT'
+        value: 'method CONNECT'
+
+      - name: 'localnet src'
+        comment: 'Access to the HTTP proxy from local networks'
+        state: '{{ "present" if squid__acl_allow_localnet else "absent" }}'
+        options: '{{ squid__acl_allow_localnet }}'
+
+
+squid__config_acl: []
+
+squid__config_default_http_access_start:
+
+  - name: 'http_access'
+    options:
+      - 'deny !Safe_ports'
+      - 'deny CONNECT !SSL_ports'
+      - 'allow localhost manager'
+      - 'deny manager'
+      - 'deny to_localhost'
+      - 'allow localhost'
+      - name: 'allow localnet'
+        state: '{{ "present" if squid__acl_allow_localnet else "absent" }}'
+
+squid__config_http_access: []
+
+squid__config_default_http_access_end:
+
+  - name: 'http_access'
+    value: 'deny all'
+
+squid__config_default_http_port:
+
+  - name: 'http_port'
+    value: [ '{{ squid__port_http }}' ]
+
+  - name: 'http_port'
+    value: [ '{{ squid__port_http_intercept }}', 'intercept' ]
+
+squid__config_http_port: []
+
+squid__config_default_https_port:
+
+  - name: 'https_port'
+    value:
+      - '{{ squid__port_https }}'
+      - 'cert=/etc/pki/realms/domain/default.crt'
+      - 'key=/etc/pki/realms/domain/default.key'
+
+squid__config_https_port: []
+
+squid__config_default_misc_options:
+
+  - name: 'cache_mgr'
+    value: 'root@{{ squid__domain }}'
+
+  - name: 'mail_from'
+    value: 'proxy@{{ squid__fqdn }}'
+
+  - name: 'httpd_suppress_version_string'
+    value: 'on'
+
+  - name: 'visible_hostname'
+    value: '{{ squid__fqdn }}'
+
+  - name: 'coredump_dir'
+    value: '/var/spool/squid3'
+
+  - name: 'shutdown_lifetime'
+    value: '10 seconds'
+
+  - name: 'workers'
+    value: '{{ squid__workers }}'
+
+squid__config_default_refresh_pattern:
+
+  - name: 'refresh_pattern'
+    options:
+
+      - name: '^ftp:'
+        value: [ '1440', '20%', '10080' ]
+
+      - name: '^gopher:'
+        value: [ '1440', '0%', '1440' ]
+
+      - name: '-i (/cgi-bin/|\?)'
+        value: [ '0', '0%', '0' ]
+
+      - name: '.'
+        value: [ '0', '20%', '4320' ]
+
+squid__config_refresh_pattern: []
+
+
+# Squid main configuration file [[[
+# ---------------------------------
+
+# .. envvar:: squid__configuration [[[
+#
+# List of YAML entries that define the contents of the
+# ``/etc/squid3/squid.conf`` configuration file.
+squid__configuration:
+
+  - '{{ squid__config_auth }}'
+  - '{{ squid__config_default_acl }}'
+  - '{{ squid__config_acl }}'
+  - '{{ squid__config_default_http_access_start }}'
+  - '{{ squid__config_http_access }}'
+  - '{{ squid__config_default_http_access_end }}'
+  - '{{ squid__config_default_http_port }}'
+  - '{{ squid__config_http_port }}'
+  - '{{ squid__config_default_https_port }}'
+  - '{{ squid__config_https_port }}'
+  - '{{ squid__config_default_misc_options }}'
+  - '{{ squid__config_default_refresh_pattern }}'
+  - '{{ squid__config_refresh_pattern }}'
+                                                                   # ]]]
+                                                                   # ]]]
+# Configuration of other Ansible roles [[[
+# ----------------------------------------
+
+# .. envvar:: squid__etc_services__dependent_list [[[
+#
+# Configuration for the ``debops.etc_services`` Ansible role.
+squid__etc_services__dependent_list:
+
+  - name: 'squid-http'
+    port: '{{ squid__port_http }}'
+    comment: 'Squid proxy - HTTP'
+
+  - name: 'squid-http-ic'
+    port: '{{ squid__port_http_intercept }}'
+    comment: 'Squid proxy - HTTP Intercept'
+
+  - name: 'squid-https'
+    port: '{{ squid__port_https }}'
+    comment: 'Squid proxy - HTTPS'
+
+                                                                   # ]]]
+# .. envvar:: squid__ferm__dependent_rules [[[
+#
+# Configuration for the ``debops.ferm`` Ansible role.
+squid__ferm__dependent_rules:
+
+  - type: 'accept'
+    protocol: 'tcp'
+    dport: '{{ squid__firewall_tcp_http_ports }}'
+    saddr: '{{ squid__allow_tcp }}'
+    by_role: 'debops.squid'
+    filename: 'squid_dependent_tcp_rules_http'
+
+  - type: 'accept'
+    protocol: 'tcp'
+    dport: '{{ squid__firewall_tcp_https_ports }}'
+    saddr: '{{ squid__allow_tcp }}'
+    by_role: 'debops.squid'
+    filename: 'squid_dependent_tcp_rules_https'
+
+  - type: 'accept'
+    protocol: 'udp'
+    dport: '{{ squid__firewall_udp_ports }}'
+    saddr: '{{ squid__allow_udp }}'
+    accept_any: False
+    by_role: 'debops.squid'
+    filename: 'squid_dependent_udp_rules'
+                                                                   # ]]]
+                                                                   # ]]]
+                                                                   # ]]]

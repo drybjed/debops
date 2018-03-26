@@ -1,0 +1,19 @@
+---
+
+- name: Check squid3 configuration and restart
+  command: '{{ squid__bin_path }} -k parse'
+  notify: [ 'Restart squid3' ]
+
+- name: Restart squid3
+  service:
+    name: '{{squid__service_name }}'
+    state: 'restarted'
+
+- name: Check squid3 configuration and reload
+  command: '{{ squid__bin_path }} -k parse'
+  notify: [ 'Reload squid3' ]
+
+- name: Reload squid3
+  service:
+    name: '{{squid__service_name }}'
+    state: 'reloaded'
