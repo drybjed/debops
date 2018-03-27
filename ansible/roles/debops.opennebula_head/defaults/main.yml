@@ -1,0 +1,150 @@
+---
+
+opennebula_head__base_packages: [ 'opennebula-sunstone', 'python-numpy' ]
+
+opennebula_head__packages: []
+
+opennebula_head__fqdn: 'sunstone.{{ opennebula_head__domain }}'
+
+opennebula_head__max_body_size: '2G'
+
+opennebula_head__domain: '{{ ansible_local.opennebula.domain
+                             if (ansible_local|d() and ansible_local.opennebula|d() and
+                                 ansible_local.opennebula.domain|d())
+                             else (ansible_domain if ansible_domain else ansible_hostname) }}'
+
+opennebula_head__user: '{{ ansible_local.opennebula.user
+                           if (ansible_local|d() and ansible_local.opennebula|d() and
+                               ansible_local.opennebula.user|d())
+                           else "oneadmin" }}'
+
+opennebula_head__group: '{{ ansible_local.opennebula.group
+                            if (ansible_local|d() and ansible_local.opennebula|d() and
+                                ansible_local.opennebula.group|d())
+                            else "oneadmin" }}'
+
+opennebula_head__home: '{{ ansible_local.opennebula.home
+                           if (ansible_local|d() and ansible_local.opennebula|d() and
+                               ansible_local.opennebula.home|d())
+                           else "/var/lib/one" }}'
+
+opennebula_head__oned: '{{ True
+                           if "debops_service_opennebula_core" in group_names
+                           else False }}'
+
+opennebula_head__oned_port: '2633'
+
+opennebula_head__oned_bind: '127.0.0.1'
+
+opennebula_head__core_fqdn: '{{ ansible_local.opennebula.core_fqdn
+                               if (ansible_local|d() and ansible_local.opennebula|d() and
+                                   ansible_local.opennebula.core_fqdn|d())
+                               else opennebula_head__fqdn }}'
+
+opennebula_head__core_delegate_to: '{{ inventory_hostname }}'
+
+opennebula_head__append_groups: [ 'ssl-cert' ]
+
+opennebula_head__sunstone_tmpdir: '/var/tmp'
+
+opennebula_head__sunstone_port: '9869'
+
+opennebula_head__sunstone_bind: '127.0.0.1'
+
+opennebula_head__sunstone_allow: []
+
+opennebula_head__xmlrpc_url: '{{ ("http://" + opennebula_head__oned_bind + ":" + opennebula_head__oned_port + "/RPC2")
+                                 if opennebula_head__oned|bool
+                                 else ("https://" + opennebula_head__core_fqdn + "/RPC2") }}'
+
+opennebula_head__vnc_proxy_port: '29876'
+
+opennebula_head__vnc_proxy_allow: '{{ opennebula_head__sunstone_allow }}'
+
+opennebula_head__vnc_proxy_support_wss: '{{ "only" if opennebula_head__pki|bool else "no" }}'
+
+opennebula_head__vnc_proxy_cert: '{{ opennebula_head__pki_path + "/"
+                                     + opennebula_head__pki_realm + "/"
+                                     + opennebula_head__pki_crt }}'
+
+opennebula_head__vnc_proxy_key: '{{ opennebula_head__pki_path + "/"
+                                    + opennebula_head__pki_realm + "/"
+                                    + opennebula_head__pki_key }}'
+
+opennebula_head__vnc_proxy_ipv6: False
+
+opennebula_head__vnc_proxy_request_password: False
+
+opennebula_head__pki: '{{ True
+                          if (ansible_local|d() and ansible_local.pki|d() and
+                              (ansible_local.pki.enabled|d())|bool)
+                          else False }}'
+
+opennebula_head__pki_path: '{{ ansible_local.pki.path
+                               if (ansible_local|d() and ansible_local.pki|d() and
+                                   ansible_local.pki.path|d())
+                               else "/etc/pki/realms" }}'
+
+opennebula_head__pki_realm: '{{ ansible_local.pki.realm
+                                if (ansible_local|d() and ansible_local.pki|d() and
+                                    ansible_local.pki.realm|d())
+                                else "domain" }}'
+
+opennebula_head__pki_crt: '{{ ansible_local.pki.crt
+                              if (ansible_local|d() and ansible_local.pki|d() and
+                                  ansible_local.pki.crt|d())
+                              else "default.crt" }}'
+
+opennebula_head__pki_key: '{{ ansible_local.pki.key
+                              if (ansible_local|d() and ansible_local.pki|d() and
+                                  ansible_local.pki.key|d())
+                              else "default.key" }}'
+
+
+opennebula_head__ruby__dependent_packages:
+
+  - 'libyajl-dev'
+  - 'zlib1g-dev'
+  - 'ruby-rack'
+  - 'ruby-curb'
+  - 'ruby-ox'
+  - 'ruby-trollop'
+  - 'ruby-uuidtools'
+  - 'ruby-amazon-ec2'
+  - 'ruby-aws-sdk'
+  - 'ruby-treetop'
+  - 'ruby-net-ldap'
+
+opennebula_head__ruby__dependent_gems:
+
+  - 'zendesk_api'
+  - 'parse-cron'
+  - 'configparser'
+  - 'azure'
+
+opennebula_head__ferm__dependent_rules:
+
+  - name: 'opennebula_sunstone'
+    type: 'accept'
+    dport: '{{ opennebula_head__vnc_proxy_port }}'
+    saddr: '{{ opennebula_head__vnc_proxy_allow }}'
+    accept_any: True
+
+opennebula_head__nginx__dependent_upstreams:
+
+  - name: 'opennebula_sunstone'
+    server: '127.0.0.1:9869'
+
+opennebula_head__nginx__dependent_servers:
+
+  - name: '{{ opennebula_head__fqdn }}'
+    role: 'debops.opennebula_head'
+    filename: 'debops.opennebula_head_sunstone'
+    type: 'proxy'
+    allow: '{{ opennebula_head__sunstone_allow }}'
+    options: |
+      underscores_in_headers on;
+      client_max_body_size {{ opennebula_head__max_body_size }};
+    proxy_options: |
+      proxy_pass_request_headers on;
+    proxy_pass: 'http://opennebula_sunstone'

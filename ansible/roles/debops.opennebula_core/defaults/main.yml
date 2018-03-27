@@ -1,0 +1,84 @@
+---
+
+opennebula_core__base_packages: [ 'opennebula' ]
+
+opennebula_core__packages: []
+
+opennebula_core__user: '{{ ansible_local.opennebula.user
+                           if (ansible_local|d() and ansible_local.opennebula|d() and
+                               ansible_local.opennebula.user|d())
+                           else "oneadmin" }}'
+
+opennebula_core__group: '{{ ansible_local.opennebula.group
+                            if (ansible_local|d() and ansible_local.opennebula|d() and
+                                ansible_local.opennebula.group|d())
+                            else "oneadmin" }}'
+
+opennebula_core__home: '{{ ansible_local.opennebula.home
+                           if (ansible_local|d() and ansible_local.opennebula|d() and
+                               ansible_local.opennebula.home|d())
+                           else "/var/lib/one" }}'
+
+opennebula_core__sunstone: '{{ False
+                               if ("debops_service_opennebula_head" in group_names)
+                               else False }}'
+
+opennebula_core__fqdn: 'oned.{{ ansible_domain }}'
+
+opennebula_core__domain: '{{ ansible_local.opennebula.domain
+                             if (ansible_local|d() and ansible_local.opennebula|d() and
+                                 ansible_local.opennebula.domain|d())
+                             else (ansible_domain if ansible_domain else ansible_hostname) }}'
+
+opennebula_core__oned_port: '2633'
+
+opennebula_core__oned_bind: '127.0.0.1'
+
+opennebula_core__oned_allow: []
+
+opennebula_core__database_backend: 'mysql'
+
+opennebula_core__database_server: '{{ ansible_local.mariadb.server
+                                      if (ansible_local|d() and ansible_local.mariadb|d() and
+                                          ansible_local.mariadb.server|d())
+                                      else "localhost" }}'
+
+opennebula_core__database_port: '{{ ansible_local.mariadb.port
+                                    if (ansible_local|d() and ansible_local.mariadb|d() and
+                                        ansible_local.mariadb.port|d())
+                                    else "3306" }}'
+
+opennebula_core__database_user: 'oneadmin'
+
+opennebula_core__database_name: 'opennebula'
+
+opennebula_core__database_password: "{{ lookup('password', secret + '/mariadb/' +
+                                        ansible_local.mariadb.delegate_to +
+                                        '/credentials/' + opennebula_core__database_user +
+                                        '/password length=48') }}"
+
+opennebula_core__mariadb__dependent_users:
+
+  - database: '{{ opennebula_core__database_name }}'
+    user: '{{ opennebula_core__database_user }}'
+    owner: '{{ opennebula_core__user }}'
+    group: '{{ opennebula_core__group }}'
+    home: '{{ opennebula_core__home }}'
+    system: True
+
+
+opennebula_core__nginx__dependent_upstreams:
+
+  - name: 'opennebula_oned'
+    server: 'localhost:{{ opennebula_core__oned_port }}'
+    state: '{{ "absent" if opennebula_core__sunstone|bool else "present" }}'
+
+opennebula_core__nginx__dependent_servers:
+
+  - name: '{{ opennebula_core__fqdn }}'
+    by_role: 'debops.opennebula_core'
+    filename: 'debops.opennebula_core_oned'
+    allow: '{{ opennebula_core__oned_allow }}'
+    type: 'proxy'
+    proxy_pass: 'http://opennebula_oned'
+    state: '{{ "absent" if opennebula_core__sunstone|bool else "present" }}'

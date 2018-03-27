@@ -1,0 +1,47 @@
+---
+
+- name: Configure OpenNebula Sunstone service
+  hosts: [ 'debops_service_opennebula_head' ]
+  tags: [ 'play::opennebula_head' ]
+  become: True
+
+  environment: '{{ inventory__environment | d({})
+                   | combine(inventory__group_environment | d({}))
+                   | combine(inventory__host_environment  | d({})) }}'
+
+  roles:
+
+    - role: debops.logrotate
+      logrotate__dependent_config:
+        - '{{ opennebula_common__logrotate__dependent_config }}'
+
+    - role: debops.ruby
+      tags: [ 'role::ruby' ]
+      ruby__dependent_packages:
+        - '{{ opennebula_head__ruby__dependent_packages }}'
+      ruby__dependent_gems:
+        - '{{ opennebula_head__ruby__dependent_gems }}'
+
+    - role: debops.apt_preferences
+      tags: [ 'role::apt_preferences' ]
+      apt_preferences__dependent_list:
+        - '{{ nginx__apt_preferences__dependent_list }}'
+
+    - role: debops.ferm
+      tags: [ 'role::ferm' ]
+      ferm__dependent_rules:
+        - '{{ nginx__ferm__dependent_rules }}'
+        - '{{ opennebula_head__ferm__dependent_rules }}'
+
+    - role: debops.nginx
+      tags: [ 'role::nginx' ]
+      nginx__dependent_upstreams:
+        - '{{ opennebula_head__nginx__dependent_upstreams }}'
+      nginx__dependent_servers:
+        - '{{ opennebula_head__nginx__dependent_servers }}'
+
+    - role: debops.opennebula_common
+      tags: [ 'role::opennebula_common' ]
+
+    - role: debops.opennebula_head
+      tags: [ 'role::opennebula_head' ]

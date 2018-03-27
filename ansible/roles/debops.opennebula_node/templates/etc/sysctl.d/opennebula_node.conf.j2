@@ -1,0 +1,8 @@
+# {{ ansible_managed }}
+
+# Configuration required for Security Groups
+# https://dev.opennebula.org/issues/4290
+
+net.bridge.bridge-nf-call-arptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1

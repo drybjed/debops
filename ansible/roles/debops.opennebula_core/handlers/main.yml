@@ -1,0 +1,13 @@
+---
+
+- name: Start opennebula
+  service:
+    name: 'opennebula'
+    state: 'started'
+    enabled: True
+
+- name: Restart opennebula
+  service:
+    name: 'opennebula'
+    state: 'restarted'
+  when: opennebula_core__register_install is not changed

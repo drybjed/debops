@@ -1,0 +1,25 @@
+---
+
+- name: Start opennebula-sunstone
+  service:
+    name: 'opennebula-sunstone'
+    state: 'started'
+    enabled: True
+
+- name: Start opennebula-novnc
+  service:
+    name: 'opennebula-novnc'
+    state: 'started'
+    enabled: True
+
+- name: Restart opennebula-sunstone
+  service:
+    name: 'opennebula-sunstone'
+    state: 'restarted'
+  when: not opennebula_head__register_install is changed
+
+- name: Restart opennebula-novnc
+  service:
+    name: 'opennebula-novnc'
+    state: 'restarted'
+  when: not opennebula_head__register_install is changed

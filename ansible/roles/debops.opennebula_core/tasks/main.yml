@@ -1,0 +1,58 @@
+---
+
+- name: Install OpenNebula Core packages
+  package:
+    name: '{{ item }}'
+    state: 'present'
+  with_flattened:
+    - '{{ opennebula_core__base_packages }}'
+    - '{{ opennebula_core__packages }}'
+  register: opennebula_core__register_install
+  notify: [ 'Start opennebula' ]
+
+- name: Check current OpenNebula diversions
+  environment:
+    LC_ALL: 'C'
+  shell: dpkg-divert --list '/etc/one/*.dpkg-divert' | awk '{print $NF}'
+  register: opennebula_core__register_diversions
+  check_mode: False
+  changed_when: False
+
+- name: Divert the OpenNebula configuration files
+  command: dpkg-divert --quiet --local --divert {{ item }}.dpkg-divert --rename {{ item }}
+  with_flattened:
+    - '/etc/one/oned.conf'
+  when: (item + '.dpkg-divert') not in opennebula_core__register_diversions.stdout_lines
+  notify: [ 'Restart opennebula' ]
+
+- name: Generate OpenNebula private configuration files
+  template:
+    src: 'etc/one/oned.conf.j2'
+    dest: '/etc/one/oned.conf'
+    owner: 'root'
+    group: '{{ opennebula_core__group }}'
+    mode: '0640'
+  notify: [ 'Restart opennebula' ]
+
+- name: Create required systemd directories
+  file:
+    path: '/etc/systemd/system/opennebula.service.d'
+    state: 'directory'
+    owner: 'root'
+    group: 'root'
+    mode: '0755'
+
+- name: Add custom OpenNebula unit configuration
+  template:
+    src: 'etc/systemd/system/opennebula.service.d/after-mysql.conf.j2'
+    dest: '/etc/systemd/system/opennebula.service.d/after-mysql.conf'
+    owner: 'root'
+    group: 'root'
+    mode: '0644'
+  register: opennebula_core__register_systemd_mysql
+  notify: [ 'Restart opennebula' ]
+
+- name: Reload systemd daemon
+  command: systemctl daemon-reload
+  when: (ansible_service_mgr == 'systemd' and
+         opennebula_core__register_systemd_mysql is changed)

@@ -1,0 +1,47 @@
+---
+
+- name: Configure OpenNebula Compute Node
+  hosts: [ 'debops_service_opennebula_node' ]
+  tags: [ 'play::opennebula_node' ]
+  become: True
+
+  environment: '{{ inventory__environment | d({})
+                   | combine(inventory__group_environment | d({}))
+                   | combine(inventory__host_environment  | d({})) }}'
+
+  roles:
+
+    - role: debops.apt_preferences
+      tags: [ 'role::apt_preferences', 'role::libvirtd' ]
+      apt_preferences__dependent_list:
+        - '{{ libvirtd__apt_preferences__dependent_list }}'
+
+    - role: debops.ferm
+      tags: [ 'role::ferm', 'role::libvirtd', 'role::libvirtd_qemu' ]
+      ferm__forward: '{{ libvirtd__ferm__forward|d() | bool }}'
+      ferm__forward_accept: '{{ libvirtd__ferm__forward|d() | bool }}'
+      ferm__dependent_rules:
+        - '{{ libvirtd__ferm__dependent_rules }}'
+        - '{{ libvirtd_qemu__ferm__dependent_rules }}'
+
+    - role: debops.logrotate
+      logrotate__dependent_config:
+        - '{{ opennebula_common__logrotate__dependent_config }}'
+
+    - role: debops.ruby
+      tags: [ 'role::ruby' ]
+
+    - role: debops.libvirtd
+      tags: [ 'role::libvirtd' ]
+
+    - role: debops.libvirtd_qemu
+      tags: [ 'role::libvirtd', 'role::libvirtd_qemu' ]
+
+    - role: debops.opennebula_common
+      tags: [ 'role::opennebula_common' ]
+
+    - role: debops.opennebula_sshx
+      tags: [ 'role::opennebula_sshx' ]
+
+    - role: debops.opennebula_node
+      tags: [ 'role::opennebula_node' ]

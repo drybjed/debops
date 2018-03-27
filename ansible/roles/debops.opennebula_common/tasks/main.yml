@@ -1,0 +1,83 @@
+---
+
+#- name: Get the latest upstream OpenNebula version
+#  script: 'script/opennebula_upstream_version.sh'
+#  delegate_to: 'localhost'
+#  become: False
+#  run_once: True
+#  register: opennebula_common__register_upstream_version
+
+- name: Create OpenNebula system group
+  group:
+    name:  '{{ opennebula_common__group }}'
+    gid:   '{{ opennebula_common__gid if opennebula_common__gid else omit }}'
+    state: 'present'
+    system: True
+
+- name: Create OpenNebula system user
+  user:
+    name:    '{{ opennebula_common__user }}'
+    uid:     '{{ opennebula_common__uid if opennebula_common__uid else omit }}'
+    group:   '{{ opennebula_common__group }}'
+    home:    '{{ opennebula_common__home }}'
+    shell:   '{{ opennebula_common__shell }}'
+    comment: '{{ opennebula_common__gecos }}'
+    state:   'present'
+    system: True
+    generate_ssh_key: True
+    ssh_key_file: '{{ opennebula_common__ssh_key_file }}'
+    ssh_key_bits: '{{ opennebula_common__ssh_key_bits }}'
+
+- name: Create OpenNebula log directory
+  file:
+    path: '/var/log/one'
+    state: 'directory'
+    owner: '{{ opennebula_common__user }}'
+    group: '{{ opennebula_common__group }}'
+    mode: '0755'
+
+- name: Add OpenNebula APT signing key
+  apt_key:
+    id: '{{ opennebula_common__upstream_apt_key_id | replace(" ","") }}'
+    keyserver: '{{ ansible_local.core.keyserver
+                   if (ansible_local|d() and ansible_local.core|d() and
+                       ansible_local.core.keyserver|d())
+                   else "hkp://pool.sks-keyservers.net" }}'
+    state: 'present'
+  when: opennebula_common__upstream|bool
+
+- name: Add OpenNebula APT repository
+  apt_repository:
+    repo: '{{ opennebula_common__upstream_apt_repo }}'
+    state: 'present'
+    update_cache: True
+  when: opennebula_common__upstream|bool
+
+- name: Install OpenNebula common packages
+  package:
+    name: '{{ item }}'
+    state: 'present'
+  with_flattened:
+    - '{{ opennebula_common__base_packages }}'
+    - '{{ opennebula_common__packages }}'
+
+- name: Make sure that Ansible local facts directory exists
+  file:
+    path: '/etc/ansible/facts.d'
+    state: 'directory'
+    owner: 'root'
+    group: 'root'
+    mode: '0755'
+
+- name: Save common OpenNebula local facts
+  template:
+    src: 'etc/ansible/facts.d/opennebula.fact.j2'
+    dest: '/etc/ansible/facts.d/opennebula.fact'
+    owner: 'root'
+    group: 'root'
+    mode: '0755'
+  register: opennebula_common__register_facts
+
+- name: Update Ansible facts if they were modified
+  action: setup
+  when: opennebula_common__register_facts is changed

@@ -1,0 +1,39 @@
+---
+
+- name: Install OpenNebula node packages
+  package:
+    name: '{{ item }}'
+    state: 'present'
+  with_flattened:
+    - '{{ opennebula_node__packages }}'
+
+- name: Make sure that required UNIX groups exist
+  group:
+    name: '{{ item }}'
+    state: 'present'
+    system: True
+  with_flattened:
+    - '{{ opennebula_node__append_groups }}'
+
+- name: Add OpenNebula admin account to specified groups
+  user:
+    name: '{{ opennebula_node__user }}'
+    groups: '{{ opennebula_node__append_groups | join(",") }}'
+    append: True
+
+- name: Ignore OpenNebula temporary files
+  template:
+    src: 'etc/tmpfiles.d/opennebula-node.conf.j2'
+    dest: '/etc/tmpfiles.d/opennebula-node.conf'
+    owner: 'root'
+    group: 'root'
+    mode: '0644'
+
+- name: Enable support for Security Groups on the node
+  sysctl:
+    name: '{{ item.key }}'
+    value: '{{ item.value }}'
+    sysctl_file: '/etc/sysctl.d/opennebula-node.conf'
+    state: 'present'
+    sysctl_set: True
+  with_dict: '{{ opennebula_node__sysctl_config }}'

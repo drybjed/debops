@@ -1,0 +1,16 @@
+---
+
+- name: OpenNebula SSH Key Exchange
+  hosts: [ 'debops_service_opennebula_core',
+           'debops_service_opennebula_node' ]
+  tags: [ 'play::opennebula_sshx' ]
+  become: True
+
+  environment: '{{ inventory__environment | d({})
+                   | combine(inventory__group_environment | d({}))
+                   | combine(inventory__host_environment  | d({})) }}'
+
+  roles:
+
+    - role: debops.opennebula_sshx
+      tags: [ 'role::opennebula_sshx' ]

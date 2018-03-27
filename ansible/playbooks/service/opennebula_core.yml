@@ -1,0 +1,47 @@
+---
+
+- name: Configure OpenNebula Core service
+  hosts: [ 'debops_service_opennebula_core' ]
+  tags: [ 'play::opennebula_core' ]
+  become: True
+
+  environment: '{{ inventory__environment | d({})
+                   | combine(inventory__group_environment | d({}))
+                   | combine(inventory__host_environment  | d({})) }}'
+
+  roles:
+
+    - role: debops.logrotate
+      logrotate__dependent_config:
+        - '{{ opennebula_common__logrotate__dependent_config }}'
+
+    - role: debops.mariadb
+      tags: [ 'role::mariadb' ]
+      mariadb__dependent_users:
+        - '{{ opennebula_core__mariadb__dependent_users }}'
+
+    - role: debops.apt_preferences
+      tags: [ 'role::apt_preferences' ]
+      apt_preferences__dependent_list:
+        - '{{ nginx__apt_preferences__dependent_list }}'
+
+    - role: debops.ferm
+      tags: [ 'role::ferm' ]
+      ferm__dependent_rules:
+        - '{{ nginx__ferm__dependent_rules }}'
+
+    - role: debops.nginx
+      tags: [ 'role::nginx' ]
+      nginx__dependent_upstreams:
+        - '{{ opennebula_core__nginx__dependent_upstreams }}'
+      nginx__dependent_servers:
+        - '{{ opennebula_core__nginx__dependent_servers }}'
+
+    - role: debops.opennebula_common
+      tags: [ 'role::opennebula_common' ]
+
+    - role: debops.opennebula_sshx
+      tags: [ 'role::opennebula_sshx' ]
+
+    - role: debops.opennebula_core
+      tags: [ 'role::opennebula_core' ]

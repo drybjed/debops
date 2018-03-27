@@ -1,0 +1,68 @@
+---
+
+opennebula_common__core_hosts: '{{ groups["debops_service_opennebula_core"] }}'
+
+opennebula_common__head_hosts: '{{ groups["debops_service_opennebula_head"] }}'
+
+opennebula_common__node_hosts: '{{ groups["debops_service_opennebula_node"] }}'
+
+opennebula_common__base_packages: [ 'opennebula-common' ]
+
+opennebula_common__packages: []
+
+opennebula_common__core_fqdn: '{{ ansible_local.core.fqdn
+                                  if (ansible_local|d() and ansible_local.core|d() and
+                                      ansible_local.core.fqdn|d())
+                                  else ansible_fqdn }}'
+
+opennebula_common__domain: '{{ ansible_local.core.domain
+                               if (ansible_local|d() and ansible_local.core|d() and
+                                   ansible_local.core.domain|d())
+                               else (ansible_domain if ansible_domain else ansible_hostname) }}'
+
+opennebula_common__upstream: True
+
+opennebula_common__upstream_apt_key_id: '92B7 7188 854C F23E 1634 DA89 592F 7F05 85E1 6EBF'
+
+opennebula_common__upstream_apt_version: '5.4'
+
+opennebula_common__upstream_apt_repo: '{{ opennebula_common__upstream_apt_repo_map[ansible_distribution] }}'
+
+opennebula_common__upstream_apt_repo_map:
+  'Debian': '{{ "deb http://downloads.opennebula.org/repo/" +
+                opennebula_common__upstream_apt_version + "/Debian/" +
+                ansible_distribution_major_version + " stable opennebula" }}'
+
+opennebula_common__uid: ''
+
+opennebula_common__gid: ''
+
+opennebula_common__user: 'oneadmin'
+
+opennebula_common__group: 'oneadmin'
+
+opennebula_common__home: '/var/lib/one'
+
+opennebula_common__shell: '/bin/bash'
+
+opennebula_common__gecos: 'OpenNebula'
+
+opennebula_common__ssh_key_bits: '4096'
+
+opennebula_common__ssh_key_file: '.ssh/id_rsa'
+
+opennebula_common__logrotate__dependent_config:
+
+  - filename: 'opennebula'
+    divert: True
+    logs: '/var/log/one/*.log'
+    options: |
+      delaycompress
+      dateext
+      dateformat -%Y%m%d-%s
+      compress
+      weekly
+      rotate 52
+      missingok
+      notifempty
+      copytruncate

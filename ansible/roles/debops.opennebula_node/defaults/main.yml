@@ -1,0 +1,36 @@
+---
+
+opennebula_node__packages: []
+
+opennebula_node__user: '{{ ansible_local.opennebula.user
+                           if (ansible_local|d() and ansible_local.opennebula|d() and
+                               ansible_local.opennebula.user|d())
+                           else "oneadmin" }}'
+
+opennebula_node__group: '{{ ansible_local.opennebula.group
+                            if (ansible_local|d() and ansible_local.opennebula|d() and
+                                ansible_local.opennebula.group|d())
+                            else "oneadmin" }}'
+
+opennebula_node__home: '{{ ansible_local.opennebula.home
+                           if (ansible_local|d() and ansible_local.opennebula|d() and
+                               ansible_local.opennebula.home|d())
+                           else "/var/lib/one" }}'
+
+opennebula_node__core_fqdn: '{{ ansible_local.opennebula.core_fqdn
+                                if (ansible_local|d() and ansible_local.opennebula|d() and
+                                    ansible_local.opennebula.core_fqdn|d())
+                                else opennebula_node__fqdn }}'
+
+opennebula_node__fqdn: '{{ ansible_fqdn }}'
+
+opennebula_node__append_groups: [ 'libvirt', 'kvm' ]
+
+opennebula_node__sysctl_config:
+
+  # https://dev.opennebula.org/issues/4290
+  'net.bridge.bridge-nf-call-arptables': '1'
+  'net.bridge.bridge-nf-call-ip6tables': '1'
+  'net.bridge.bridge-nf-call-iptables':  '1'
+
+opennebula_node__ferm__dependent_rules: []

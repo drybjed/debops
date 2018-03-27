@@ -1,0 +1,36 @@
+---
+
+opennebula_sshx__user: '{{ ansible_local.opennebula.user
+                           if (ansible_local|d() and ansible_local.opennebula|d() and
+                               ansible_local.opennebula.user|d())
+                           else "oneadmin" }}'
+
+opennebula_sshx__group: '{{ ansible_local.opennebula.group
+                            if (ansible_local|d() and ansible_local.opennebula|d() and
+                                ansible_local.opennebula.group|d())
+                            else "oneadmin" }}'
+
+opennebula_sshx__home: '{{ ansible_local.opennebula.home
+                           if (ansible_local|d() and ansible_local.opennebula|d() and
+                               ansible_local.opennebula.home|d())
+                           else "/var/lib/one" }}'
+
+opennebula_sshx__public_key: '{{ opennebula_sshx__home + "/.ssh/id_rsa.pub" }}'
+
+opennebula_sshx__core_hosts: '{{ groups["debops_service_opennebula_core"]|d([]) }}'
+
+opennebula_sshx__node_hosts: '{{ groups["debops_service_opennebula_node"]|d([]) }}'
+
+opennebula_sshx__key_bits: '4096'
+
+opennebula_sshx__key_file: '.ssh/id_rsa'
+
+opennebula_sshx__key_exchange_hosts: '{{ opennebula_sshx__core_hosts|d([])
+                                         + opennebula_sshx__node_hosts|d([]) }}'
+
+opennebula_sshx__fqdn: '{{ ansible_local.core.fqdn
+                           if (ansible_local|d() and ansible_local.core|d() and
+                               ansible_local.core.fqdn|d())
+                           else ansible_fqdn }}'
+
+opennebula_sshx__append_groups: [ 'sshusers' ]

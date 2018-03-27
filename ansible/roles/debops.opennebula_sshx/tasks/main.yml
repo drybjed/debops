@@ -1,0 +1,59 @@
+---
+
+- name: Expose host FQDN in Ansible hostvars
+  set_fact:
+    opennebula_sshx__fqdn: '{{ opennebula_sshx__fqdn }}'
+
+- name: Add OpenNebula user to system groups for SSH access
+  user:
+    name:   '{{ opennebula_sshx__user }}'
+    groups: '{{ opennebula_sshx__append_groups | join(",") }}'
+    append: True
+
+- name: Get the SSH key from hosts
+  slurp:
+    src: '{{ opennebula_sshx__public_key }}'
+  register: opennebula_sshx__register_public_key
+
+- name: Add SSH public keys to authorized_keys
+  authorized_key:
+    user: '{{ opennebula_sshx__user }}'
+    key: '{{ opennebula_sshx__register_public_key.content | b64decode | trim }}'
+    key_options: 'no-agent-forwarding,no-X11-forwarding,no-port-forwarding'
+    state: 'present'
+  delegate_to: '{{ item }}'
+  with_flattened:
+    - '{{ opennebula_sshx__key_exchange_hosts }}'
+  when: hostvars[item].ansible_hostname|d()
+
+- name: Ensure that known_hosts file exists
+  file:
+    path: '{{ opennebula_sshx__home + "/.ssh/known_hosts" }}'
+    state: '{{ "file"
+               if (ansible_local|d() and ansible_local.opennebula|d() and
+                   ansible_local.opennebula.known_hosts|d() and
+                   ansible_local.opennebula.known_hosts|bool)
+               else "touch" }}'
+    owner: '{{ opennebula_sshx__user }}'
+    group: '{{ opennebula_sshx__group }}'
+    mode: '0600'
+
+- name: Get list of already scanned hosts
+  shell: ssh-keygen -f {{ opennebula_sshx__home + "/.ssh/known_hosts" }} -F {{ hostvars[item].ansible_hostname }}
+  register: opennebula_sshx__register_known_hosts
+  with_flattened:
+    - '{{ opennebula_sshx__key_exchange_hosts }}'
+  when: hostvars[item].ansible_hostname|d()
+  changed_when: False
+  failed_when: False
+  check_mode: False
+
+- name: Scan SSH fingerprints of server hostname
+  shell: ssh-keyscan -H -T 10 {{ hostvars[item.item].ansible_hostname }} >> {{ opennebula_sshx__home + "/.ssh/known_hosts" }}
+  with_items: '{{ opennebula_sshx__register_known_hosts.results }}'
+  when: item.rc|d() and item.rc > 0
+
+- name: Scan SSH fingerprints of server FQDN
+  shell: ssh-keyscan -H -T 10 {{ hostvars[item.item].opennebula_sshx__fqdn }} >> {{ opennebula_sshx__home + "/.ssh/known_hosts" }}
+  with_items: '{{ opennebula_sshx__register_known_hosts.results }}'
+  when: item.rc|d() and item.rc > 0

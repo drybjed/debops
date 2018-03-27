@@ -1,0 +1,9 @@
+---
+
+- import_playbook: opennebula_core.yml
+
+- import_playbook: opennebula_head.yml
+
+- import_playbook: opennebula_node.yml
+
+- import_playbook: opennebula_sshx.yml

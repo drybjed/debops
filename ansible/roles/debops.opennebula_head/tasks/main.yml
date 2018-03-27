@@ -1,0 +1,57 @@
+---
+
+- name: Add OpenNebula user to system groups for certificate access
+  user:
+    name: '{{ opennebula_head__user }}'
+    groups: '{{ opennebula_head__append_groups | join(",") }}'
+    append: True
+  register: opennebula_head__register_install
+  notify: [ 'Restart opennebula-novnc' ]
+
+- name: Install OpenNebula Sunstone packages
+  package:
+    name: '{{ item }}'
+    state: 'present'
+  with_flattened:
+    - '{{ opennebula_head__base_packages }}'
+    - '{{ opennebula_head__packages }}'
+  notify: [ 'Start opennebula-sunstone', 'Start opennebula-novnc' ]
+
+- name: Check current OpenNebula diversions
+  environment:
+    LC_ALL: 'C'
+  shell: dpkg-divert --list '/etc/one/*.dpkg-divert' | awk '{print $NF}'
+  register: opennebula_head__register_diversions
+  check_mode: False
+  changed_when: False
+
+- name: Divert the OpenNebula configuration files
+  command: dpkg-divert --quiet --local --divert {{ item }}.dpkg-divert --rename {{ item }}
+  with_flattened:
+    - '/etc/one/sunstone-server.conf'
+  when: (item + '.dpkg-divert')  not in opennebula_head__register_diversions.stdout_lines
+
+- name: Generate OpenNebula configuration files
+  template:
+    src: 'etc/one/sunstone-server.conf.j2'
+    dest: '/etc/one/sunstone-server.conf'
+    owner: 'root'
+    group: 'root'
+    mode: '0644'
+  notify: [ 'Restart opennebula-sunstone', 'Restart opennebula-novnc' ]
+
+- name: Read Sunstone symmetric auth from OpenNebula Core
+  slurp:
+    src: '{{ opennebula_head__home + "/.one/sunstone_auth" }}'
+  register: opennebula_head__register_sunstone_auth
+  delegate_to: '{{ opennebula_head__core_delegate_to }}'
+  when: opennebula_head__core_delegate_to != inventory_hostname
+
+- name: Save Sunstone symmetric auth on OpenNebula Node
+  copy:
+    content: '{{ opennebula_head__register_sunstone_auth.content | b64decode }}'
+    dest: '{{ opennebula_head__home + "/.one/sunstone_auth" }}'
+    owner: '{{ opennebula_head__user }}'
+    group: '{{ opennebula_head__group }}'
+    mode: '0600'
+  when: opennebula_head__core_delegate_to != inventory_hostname
