@@ -237,7 +237,7 @@ squid__config_default_misc_options:
     value: '{{ squid__fqdn }}'
 
   - name: 'coredump_dir'
-    value: '/var/spool/squid3'
+    value: "/var/spool/{{ 'squid' if ansible_distribution_release == 'stretch' else 'squid3' }}"
 
   - name: 'shutdown_lifetime'
     value: '10 seconds'
