@@ -23,6 +23,22 @@ You can read information about required changes between releases in the
 
 .. _debops master: https://github.com/debops/debops/compare/v2.3.0...master
 
+Changed
+~~~~~~~
+
+General
+'''''''
+
+- The :command:`debops` Python scripts have been completely rewritten and
+  reorganized. The UI has been redesigned to use subcommands rather than
+  separate scripts. This pans the way for easy extension of the script
+  functionality in the future and improvements for various tasks done on the
+  Ansible Controller.
+
+  .. note:: New set of :command:`debops` scripts is currently in development on
+            the ``master`` branch of the DebOps monorepo. Install the PyPI
+            package for a working version.
+
 
 `debops v2.3.0`_ - 2021-06-04
 -----------------------------
