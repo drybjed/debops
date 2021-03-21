@@ -1,0 +1,180 @@
+---
+# Copyright (C) 2020 CipherMail B.V. <https://www.ciphermail.com/>
+# Copyright (C) 2020 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+simplesamlphp__base_packages: [ 'composer' ]
+simplesamlphp__packages: []
+
+simplesamlphp__user: 'simplesamlphp'
+simplesamlphp__group: 'simplesamlphp'
+simplesamlphp__shell: '/usr/sbin/nologin'
+simplesamlphp__home: '{{ (ansible_local.root.home
+                          if (ansible_local|d() and ansible_local.root|d() and
+                              ansible_local.root.home|d())
+                          else "/var/local")
+                         + "/simplesamlphp" }}'
+
+simplesamlphp__release_url: 'https://github.com/simplesamlphp/simplesamlphp/releases/download/v1.18.8/simplesamlphp-1.18.8.tar.gz'
+simplesamlphp__release_checksum: 'sha256:363e32b431c62d174e3c3478b294e9aac96257092de726cbae520a4feee201f1'
+
+simplesamlphp__src: '{{ (ansible_local.root.src
+                         if (ansible_local|d() and ansible_local.root|d() and
+                             ansible_local.root.src|d())
+                         else "/usr/local/src")
+                        + "/simplesamlphp.tar.gz" }}'
+
+simplesamlphp__www: '{{ (ansible_local.nginx.www
+                         if (ansible_local|d() and ansible_local.nginx|d() and
+                             ansible_local.nginx.www|d())
+                         else "/srv/www")
+                        + "/simplesamlphp" }}'
+
+simplesamlphp__modules:
+
+  - name: 'simplesamlphp/simplesamlphp-module-webauthn'
+    version: 'v0.10.0'
+    state: 'present'
+
+simplesamlphp__modules_active: '{{ simplesamlphp__modules
+                                   | selectattr("state", "equalto", "present")
+                                   | map(attribute="name")|list|unique }}'
+
+simplesamlphp__webauthn_attrib_username: 'uid'
+simplesamlphp__webauthn_attrib_displayname: 'cn'
+simplesamlphp__webauthn_scope: '{{ simplesamlphp__fqdn }}'
+simplesamlphp__webauthn_request_tokenmodel: True
+simplesamlphp__webauthn_default_enable: True
+simplesamlphp__webauthn_force: True
+simplesamlphp__webauthn_attrib_toggle: 'toggle'
+simplesamlphp__webauthn_use_database: True
+simplesamlphp__webauthn_use_inflow_registration: True
+simplesamlphp__webauthn_registration_auth_source: '{{ simplesamlphp__ldap_name }}'
+
+simplesamlphp__authproc_idp: |
+  {% if 'simplesamlphp/simplesamlphp-module-webauthn' in simplesamlphp__modules_active %}
+  100 => [
+      'class'	=> 'webauthn:WebAuthn',
+  ],
+  {% endif %}
+
+simplesamlphp__mariadb: '{{ True
+                            if "simplesamlphp/simplesamlphp-module-webauthn" in simplesamlphp__modules_active
+                            else False }}'
+simplesamlphp__mariadb_delegate_to: '{{ ansible_local.mariadb.delegate_to
+                                        if (ansible_local|d() and
+                                            ansible_local.mariadb|d() and
+                                            ansible_local.mariadb.delegate_to|d())
+                                        else ansible_fqdn }}'
+simplesamlphp__mariadb_server: '{{ ansible_local.mariadb.server
+                                   if (ansible_local|d() and
+                                       ansible_local.mariadb|d() and
+                                       ansible_local.mariadb.server|d())
+                                   else "localhost" }}'
+simplesamlphp__mariadb_database: 'simplesamlphp'
+simplesamlphp__mariadb_user: 'simplesamlphp'
+simplesamlphp__mariadb_password: '{{ lookup("password", secret + "/mariadb/"
+                                                        + simplesamlphp__mariadb_delegate_to + "/"
+                                                        + "credentials/"
+                                                        + simplesamlphp__mariadb_user
+                                                        + "/password chars=ascii_letters,digits length=22") }}'
+
+simplesamlphp__domain: '{{ ansible_domain }}'
+simplesamlphp__fqdn: 'sso.{{ simplesamlphp__domain }}'
+simplesamlphp__technicalcontact_name: '{{ ansible_local.machine.organization
+                                          if (ansible_local|d() and
+                                              ansible_local.machine|d() and
+                                              ansible_local.machine.organization)
+                                          else ansible_domain.split(".")[0] | capitalize }}'
+simplesamlphp__technicalcontact_email: '{{ ansible_local.core.admin_public_email[0]
+                                           if (ansible_local|d() and
+                                               ansible_local.core|d() and
+                                               ansible_local.core.admin_public_email|d() and
+                                               ansible_local.core.admin_public_email[0]|d())
+                                           else "root@" + simplesamlphp__domain }}'
+simplesamlphp__salt: '{{ lookup("password", secret + "/simplesamlphp/salt chars=ascii_letters,digits length=22") }}'
+simplesamlphp__admin_password: '{{ lookup("password", secret + "/credentials/"
+                                                      + ansible_fqdn
+                                                      + "/simplesamlphp"
+                                                      + "/admin/password chars=ascii_letters,digits length=14") }}'
+simplesamlphp__saml20_idp: True
+simplesamlphp__pki_path: '{{ ansible_local.pki.base_path
+                             if (ansible_local|d() and
+                                 ansible_local.pki|d() and
+                                 ansible_local.pki.base_path|d())
+                             else "/etc/pki/realms" }}'
+simplesamlphp__pki_realm: 'domain'
+simplesamlphp__certdir: '{{ simplesamlphp__pki_path + "/"
+                            + simplesamlphp__pki_realm + "/" }}'
+
+simplesamlphp__ldap: True
+simplesamlphp__ldap_name: '{{ simplesamlphp__ldap_hostname }}'
+simplesamlphp__ldap_hostname: 'ldap.{{ simplesamlphp__domain }}'
+simplesamlphp__ldap_tls: True
+simplesamlphp__ldap_debug: False
+simplesamlphp__ldap_timeout: 0
+simplesamlphp__ldap_port: 389
+simplesamlphp__ldap_referrals: True
+simplesamlphp__ldap_attributes: []
+simplesamlphp__ldap_basedn: '{{ ansible_local.ldap.basedn
+                                if (ansible_local|d() and
+                                    ansible_local.ldap|d() and
+                                    ansible_local.ldap.basedn|d())
+                                else "dc=" + simplesamlphp__domain.split(".") | join(",dc=") }}'
+simplesamlphp__ldap_dnpattern: 'uid=%username%,ou=People,{{ simplesamlphp__ldap_basedn }}'
+simplesamlphp__ldap_search: False
+simplesamlphp__ldap_search_base: 'ou=People,{{ simplesamlphp__ldap_basedn }}'
+simplesamlphp__ldap_search_attributes: [ 'uid' ]
+simplesamlphp__ldap_search_filter: '(objectClass=inetOrgPerson)'
+simplesamlphp__ldap_search_username: ''
+simplesamlphp__ldap_search_password: ''
+simplesamlphp__ldap_priv_read: 'FALSE'
+simplesamlphp__ldap_priv_username: ''
+simplesamlphp__ldap_priv_password: ''
+
+simplesamlphp__saml_idp_certificate: 'default.crt'
+simplesamlphp__saml_idp_privatekey: 'default.key'
+simplesamlphp__saml_idp_auth: '{{ simplesamlphp__ldap_name }}'
+simplesamlphp__saml_sp_metadata: ''
+
+simplesamlphp__mariadb__dependent_users:
+
+  - user: '{{ simplesamlphp__mariadb_user }}'
+    password: '{{ simplesamlphp__mariadb_password }}'
+    database: '{{ simplesamlphp__mariadb_database }}'
+
+simplesamlphp__nginx__dependent_servers:
+
+  - name: '{{ simplesamlphp__fqdn }}'
+    filename: 'debops.simplesamlphp'
+    root: '{{ simplesamlphp__www }}/www'
+    webroot_create: False
+    type: 'php'
+    php_upstream: 'php_simplesamlphp'
+
+simplesamlphp__nginx__dependent_upstreams:
+
+  - name: 'php_simplesamlphp'
+    by_role: 'debops.simplesamlphp'
+    type: 'php'
+    php_pool: 'simplesamlphp'
+
+simplesamlphp__php__dependent_packages:
+
+  - '{{ [ "gmp" ]
+        if "simplesamlphp/simplesamlphp-module-webauthn" in simplesamlphp__modules_active
+        else [] }}'
+  - 'json'
+  - 'ldap'
+  - 'mbstring'
+  - '{{ [ "mysql" ]
+        if simplesamlphp__mariadb
+        else [] }}'
+  - 'xml'
+
+simplesamlphp__php__dependent_pools:
+
+  - name: 'simplesamlphp'
+    by_role: 'debops.simplesamlphp'
+    user: '{{ simplesamlphp__user }}'
+    group: '{{ simplesamlphp__group }}'

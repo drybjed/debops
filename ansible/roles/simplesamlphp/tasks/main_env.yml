@@ -1,0 +1,17 @@
+---
+# Copyright (C) 2020 CipherMail B.V. <https://www.ciphermail.com/>
+# Copyright (C) 2020 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+- name: Create system group
+  group:
+    name: '{{ simplesamlphp__group }}'
+    system: True
+
+- name: Create system account
+  user:
+    name: '{{ simplesamlphp__user }}'
+    group: '{{ simplesamlphp__group }}'
+    system: True
+    home: '{{ simplesamlphp__home }}'
+    shell: '{{ simplesamlphp__shell }}'

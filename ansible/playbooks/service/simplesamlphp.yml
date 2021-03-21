@@ -1,0 +1,49 @@
+---
+# Copyright (C) 2020 CipherMail B.V. <https://www.ciphermail.com/>
+# Copyright (C) 2020 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+- name: Manage SimpleSAMLphp
+  hosts: [ 'debops_service_simplesamlphp' ]
+  become: True
+
+  environment: '{{ inventory__environment | d({})
+                   | combine(inventory__group_environment | d({}))
+                   | combine(inventory__host_environment  | d({})) }}'
+
+  pre_tasks:
+
+    - import_role:
+        name: 'php'
+        tasks_from: 'main_env'
+      tags: [ 'role::php', 'role::php:env' ]
+
+    - import_role:
+        name: 'simplesamlphp'
+        tasks_from: 'main_env'
+      tags: [ 'role::simplesamlphp', 'role::simplesamlphp:env' ]
+
+  roles:
+
+    - role: mariadb
+      tags: [ 'role::mariadb', 'skip::mariadb' ]
+      mariadb__dependent_users:
+        - '{{ simplesamlphp__mariadb__dependent_users }}'
+      when: simplesamlphp__mariadb
+
+    - role: php
+      tags: [ 'role::php', 'skip::php' ]
+      php__dependent_packages:
+        - '{{ simplesamlphp__php__dependent_packages }}'
+      php__dependent_pools:
+        - '{{ simplesamlphp__php__dependent_pools }}'
+
+    - role: nginx
+      tags: [ 'role::nginx', 'skip::nginx' ]
+      nginx__dependent_servers:
+        - '{{ simplesamlphp__nginx__dependent_servers }}'
+      nginx__dependent_upstreams:
+        - '{{ simplesamlphp__nginx__dependent_upstreams }}'
+
+    - role: simplesamlphp
+      tags: [ 'role::simplesamlphp', 'skip::simplesamlphp' ]

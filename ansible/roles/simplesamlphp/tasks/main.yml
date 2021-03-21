@@ -1,0 +1,79 @@
+---
+# Copyright (C) 2020 CipherMail B.V. <https://www.ciphermail.com/>
+# Copyright (C) 2020 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+- include_tasks: init_mariadb.yml
+  when: simplesamlphp__mariadb
+
+- name: Install Debian packages
+  package:
+    name: '{{ (simplesamlphp__base_packages + simplesamlphp__packages)|flatten }}'
+    state: 'present'
+  register: simplesamlphp__register_packages
+  until: simplesamlphp__register_packages is succeeded
+
+- name: Download and verify SimpleSAMLphp release archive
+  get_url:
+    url: '{{ simplesamlphp__release_url }}'
+    dest: '{{ simplesamlphp__src }}'
+    checksum: '{{ simplesamlphp__release_checksum }}'
+  register: simplesamlphp__register_release_archive
+
+- name: Remove old installation directory
+  file:
+    path: '{{ simplesamlphp__www }}'
+    state: 'absent'
+  when: simplesamlphp__register_release_archive.changed
+
+- name: Create new installation directory
+  file:
+    path: '{{ simplesamlphp__www }}'
+    state: 'directory'
+    mode: '0755'
+
+- name: Unpack the release archive
+  unarchive:
+    remote_src: True
+    src: '{{ simplesamlphp__src }}'
+    dest: '{{ simplesamlphp__www }}'
+    extra_opts: [ '--strip-components', '1' ]
+    owner: '{{ simplesamlphp__user }}'
+    group: '{{ simplesamlphp__group }}'
+    mode: 'u=rwX,g=rX,o=rX'
+    creates: '{{ simplesamlphp__www + "/www/" }}'
+
+- name: Remove modules with Composer
+  composer:
+    command: 'remove'
+    arguments: '{{ item.name }}'
+    working_dir: '{{ simplesamlphp__www }}'
+  become: True
+  become_user: '{{ simplesamlphp__user }}'
+  when: item.state|d("present") == "absent"
+  loop: '{{ simplesamlphp__modules }}'
+
+- name: Install modules with Composer
+  composer:
+    command: 'require'
+    arguments: '{{ item.name + " " + item.version|d() }}'
+    working_dir: '{{ simplesamlphp__www }}'
+  become: True
+  become_user: '{{ simplesamlphp__user }}'
+  when: item.state|d("present") == "present"
+  loop: '{{ simplesamlphp__modules }}'
+
+- name: Configure SimpleSAMLphp
+  template:
+    src: '{{ item }}.j2'
+    dest: '{{ simplesamlphp__www + "/" + item }}'
+    owner: '{{ simplesamlphp__user }}'
+    group: '{{ simplesamlphp__group }}'
+    mode: '0600'
+  no_log: '{{ secret__no_log|d(True) }}'
+  with_items:
+    - 'config/authsources.php'
+    - 'config/config.php'
+    - 'config/module_webauthn.php'
+    - 'metadata/saml20-idp-hosted.php'
+    - 'metadata/saml20-sp-remote.php'

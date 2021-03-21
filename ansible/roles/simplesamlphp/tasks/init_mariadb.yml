@@ -1,0 +1,32 @@
+---
+# Copyright (C) 2020 CipherMail B.V. <https://www.ciphermail.com/>
+# Copyright (C) 2020 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+- name: Create MariaDB database
+  mysql_db:
+    name: '{{ simplesamlphp__mariadb_database }}'
+    state: 'present'
+  delegate_to: '{{ simplesamlphp__mariadb_delegate_to }}'
+  register: simplesamlphp__register_mariadb_status
+
+- name: Upload database schema for WebAuthn module
+  copy:
+    src: 'tmp/webauthn.sql'
+    dest: '/tmp/webauthn.sql'
+    mode: '0644'
+  when: ("simplesamlphp/simplesamlphp-module-webauthn" in simplesamlphp__modules_active and
+         simplesamlphp__register_mariadb_status|d() and
+         simplesamlphp__register_mariadb_status is changed)
+
+- name: Create database tables for WebAuthn module
+  mysql_db:
+    name: '{{ simplesamlphp__mariadb_database }}'
+    state: 'import'
+    target: '/tmp/webauthn.sql'
+    login_host: '{{ simplesamlphp__mariadb_server }}'
+    login_user: '{{ simplesamlphp__mariadb_user }}'
+    login_password: '{{ simplesamlphp__mariadb_password }}'
+  when: ("simplesamlphp/simplesamlphp-module-webauthn" in simplesamlphp__modules_active and
+         simplesamlphp__register_mariadb_status|d() and
+         simplesamlphp__register_mariadb_status is changed)
