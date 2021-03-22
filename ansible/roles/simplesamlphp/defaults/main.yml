@@ -3,17 +3,31 @@
 # Copyright (C) 2020 DebOps <https://debops.org/>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-simplesamlphp__base_packages: [ 'composer' ]
+simplesamlphp__upstream: '{{ True
+                             if (ansible_distribution_release in
+                                 [ "wheezy", "jessie", "stretch", "buster" ])
+                             else False }}'
+
+simplesamlphp__base_packages: '{{ []
+                                  if simplesamlphp__upstream|bool
+                                  else [ "simplesamlphp" ] }}'
+
 simplesamlphp__packages: []
 
-simplesamlphp__user: 'simplesamlphp'
-simplesamlphp__group: 'simplesamlphp'
+simplesamlphp__user: '{{ "simplesamlphp"
+                         if simplesamlphp__upstream|bool
+                         else "www-data" }}'
+
+simplesamlphp__group: '{{ "simplesamlphp"
+                          if simplesamlphp__upstream|bool
+                          else "www-data" }}'
+
 simplesamlphp__shell: '/usr/sbin/nologin'
-simplesamlphp__home: '{{ (ansible_local.root.home
-                          if (ansible_local|d() and ansible_local.root|d() and
-                              ansible_local.root.home|d())
-                          else "/var/local")
-                         + "/simplesamlphp" }}'
+
+simplesamlphp__home: '{{ (ansible_local.root.home | d("/var/local")
+                          + "/simplesamlphp")
+                         if simplesamlphp__upstream|bool
+                         else "/var/www" }}'
 
 simplesamlphp__release_url: 'https://github.com/simplesamlphp/simplesamlphp/releases/download/v1.18.8/simplesamlphp-1.18.8.tar.gz'
 simplesamlphp__release_checksum: 'sha256:363e32b431c62d174e3c3478b294e9aac96257092de726cbae520a4feee201f1'
@@ -24,11 +38,10 @@ simplesamlphp__src: '{{ (ansible_local.root.src
                          else "/usr/local/src")
                         + "/simplesamlphp.tar.gz" }}'
 
-simplesamlphp__www: '{{ (ansible_local.nginx.www
-                         if (ansible_local|d() and ansible_local.nginx|d() and
-                             ansible_local.nginx.www|d())
-                         else "/srv/www")
-                        + "/simplesamlphp" }}'
+simplesamlphp__www: '{{ (ansible_local.nginx.www | d("/srv/www")
+                         + "/simplesamlphp")
+                        if simplesamlphp__upstream|bool
+                        else "/usr/share/simplesamlphp" }}'
 
 simplesamlphp__modules:
 
