@@ -13,6 +13,19 @@
   register: simplesamlphp__register_packages
   until: simplesamlphp__register_packages is succeeded
 
+- name: Create system group
+  group:
+    name: '{{ simplesamlphp__group }}'
+    system: True
+
+- name: Create system account
+  user:
+    name: '{{ simplesamlphp__user }}'
+    group: '{{ simplesamlphp__group }}'
+    system: True
+    home: '{{ simplesamlphp__home }}'
+    shell: '{{ simplesamlphp__shell }}'
+
 - name: Download and verify SimpleSAMLphp release archive
   get_url:
     url: '{{ simplesamlphp__release_url }}'

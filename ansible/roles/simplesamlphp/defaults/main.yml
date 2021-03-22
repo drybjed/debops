@@ -142,6 +142,9 @@ simplesamlphp__mariadb__dependent_users:
   - user: '{{ simplesamlphp__mariadb_user }}'
     password: '{{ simplesamlphp__mariadb_password }}'
     database: '{{ simplesamlphp__mariadb_database }}'
+    owner: '{{ simplesamlphp__user }}'
+    group: '{{ simplesamlphp__group }}'
+    home: '{{ simplesamlphp__home }}'
 
 simplesamlphp__nginx__dependent_servers:
 
@@ -178,3 +181,5 @@ simplesamlphp__php__dependent_pools:
     by_role: 'debops.simplesamlphp'
     user: '{{ simplesamlphp__user }}'
     group: '{{ simplesamlphp__group }}'
+    owner: '{{ simplesamlphp__user }}'
+    home: '{{ simplesamlphp__home }}'

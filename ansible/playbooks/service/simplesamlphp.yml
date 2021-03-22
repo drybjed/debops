@@ -34,12 +34,6 @@
         tasks_from: 'main_env'
       tags: [ 'role::php', 'role::php:env' ]
 
-    - name: Prepare simplesamlphp environment
-      import_role:
-        name: 'simplesamlphp'
-        tasks_from: 'main_env'
-      tags: [ 'role::simplesamlphp', 'role::simplesamlphp:env' ]
-
   roles:
 
     - role: apt_preferences
