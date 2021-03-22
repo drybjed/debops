@@ -13,12 +13,14 @@
 
   pre_tasks:
 
-    - import_role:
+    - name: Prepare php environment
+      import_role:
         name: 'php'
         tasks_from: 'main_env'
       tags: [ 'role::php', 'role::php:env' ]
 
-    - import_role:
+    - name: Prepare simplesamlphp environment
+      import_role:
         name: 'simplesamlphp'
         tasks_from: 'main_env'
       tags: [ 'role::simplesamlphp', 'role::simplesamlphp:env' ]

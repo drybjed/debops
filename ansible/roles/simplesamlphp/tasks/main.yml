@@ -21,7 +21,7 @@
   register: simplesamlphp__register_release_archive
 
 - name: Remove old installation directory
-  file:
+  file:  # noqa no-handler
     path: '{{ simplesamlphp__www }}'
     state: 'absent'
   when: simplesamlphp__register_release_archive.changed
