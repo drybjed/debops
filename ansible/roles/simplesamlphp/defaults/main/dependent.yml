@@ -1,0 +1,61 @@
+---
+# Copyright (C) 2020      CipherMail B.V. <https://www.ciphermail.com/>
+# Copyright (C) 2021      Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2020-2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+simplesamlphp__keyring__dependent_gpg_user: '{{ simplesamlphp__user }}'
+
+simplesamlphp__keyring__dependent_gpg_keys:
+
+  - user: '{{ simplesamlphp__user }}'
+    group: '{{ simplesamlphp__group }}'
+    home: '{{ simplesamlphp__home }}'
+    id: '{{ simplesamlphp__upstream_git_gpg_key }}'
+
+simplesamlphp__mariadb__dependent_users:
+
+  - user: '{{ simplesamlphp__mariadb_user }}'
+    password: '{{ simplesamlphp__mariadb_password }}'
+    database: '{{ simplesamlphp__mariadb_database }}'
+    owner: '{{ simplesamlphp__user }}'
+    group: '{{ simplesamlphp__group }}'
+    home: '{{ simplesamlphp__home }}'
+
+simplesamlphp__nginx__dependent_servers:
+
+  - name: '{{ simplesamlphp__fqdn }}'
+    filename: 'debops.simplesamlphp'
+    root: '{{ simplesamlphp__application_root }}/www'
+    webroot_create: False
+    type: 'php'
+    php_upstream: 'php_simplesamlphp'
+
+simplesamlphp__nginx__dependent_upstreams:
+
+  - name: 'php_simplesamlphp'
+    by_role: 'debops.simplesamlphp'
+    type: 'php'
+    php_pool: 'simplesamlphp'
+
+simplesamlphp__php__dependent_packages:
+
+  - '{{ [ "gmp" ]
+        if "simplesamlphp/simplesamlphp-module-webauthn" in simplesamlphp__modules_active
+        else [] }}'
+  - 'json'
+  - 'ldap'
+  - 'mbstring'
+  - '{{ [ "mysql" ]
+        if simplesamlphp__mariadb
+        else [] }}'
+  - 'xml'
+
+simplesamlphp__php__dependent_pools:
+
+  - name: 'simplesamlphp'
+    by_role: 'debops.simplesamlphp'
+    user: '{{ simplesamlphp__user }}'
+    group: '{{ simplesamlphp__group }}'
+    owner: '{{ simplesamlphp__user }}'
+    home: '{{ simplesamlphp__home }}'
