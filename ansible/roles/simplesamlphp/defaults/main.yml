@@ -1,6 +1,7 @@
 ---
-# Copyright (C) 2020 CipherMail B.V. <https://www.ciphermail.com/>
-# Copyright (C) 2020 DebOps <https://debops.org/>
+# Copyright (C) 2020      CipherMail B.V. <https://www.ciphermail.com/>
+# Copyright (C) 2021      Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2020-2021 DebOps <https://debops.org/>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 simplesamlphp__upstream: '{{ True
@@ -14,34 +15,44 @@ simplesamlphp__base_packages: '{{ []
 
 simplesamlphp__packages: []
 
-simplesamlphp__user: '{{ "simplesamlphp"
-                         if simplesamlphp__upstream|bool
-                         else "www-data" }}'
+simplesamlphp__user: 'simplesamlphp'
 
-simplesamlphp__group: '{{ "simplesamlphp"
-                          if simplesamlphp__upstream|bool
-                          else "www-data" }}'
+simplesamlphp__group: 'simplesamlphp'
 
 simplesamlphp__shell: '/usr/sbin/nologin'
 
-simplesamlphp__home: '{{ (ansible_local.root.home | d("/var/local")
-                          + "/simplesamlphp")
-                         if simplesamlphp__upstream|bool
-                         else "/var/www" }}'
+simplesamlphp__home: '{{ ansible_local.fhs.home | d("/var/local")
+                         + "/simplesamlphp" }}'
 
-simplesamlphp__release_url: 'https://github.com/simplesamlphp/simplesamlphp/releases/download/v1.18.8/simplesamlphp-1.18.8.tar.gz'
-simplesamlphp__release_checksum: 'sha256:363e32b431c62d174e3c3478b294e9aac96257092de726cbae520a4feee201f1'
+simplesamlphp__src: '{{ (ansible_local.fhs.src | d("/usr/local/src"))
+                         + "/" + simplesamlphp__user }}'
 
-simplesamlphp__src: '{{ (ansible_local.root.src
-                         if (ansible_local|d() and ansible_local.root|d() and
-                             ansible_local.root.src|d())
-                         else "/usr/local/src")
-                        + "/simplesamlphp.tar.gz" }}'
-
-simplesamlphp__www: '{{ (ansible_local.nginx.www | d("/srv/www")
+simplesamlphp__www: '{{ (ansible_local.fhs.www | d("/srv/www")
                          + "/simplesamlphp")
                         if simplesamlphp__upstream|bool
                         else "/usr/share/simplesamlphp" }}'
+
+simplesamlphp__upstream_git_gpg_key: 'A64E A10E 8D14 643D 8ADC  E783 AA33 2A8A 3D25 5B32'
+
+simplesamlphp__upstream_git_repo: 'https://github.com/simplesamlphp/simplesamlphp.git'
+
+simplesamlphp__upstream_git_dir: '{{ simplesamlphp__src + "/"
+                                     + simplesamlphp__upstream_git_repo
+                                       .split("@" if ("@" in simplesamlphp__upstream_git_repo)
+                                                  else "://")[1] }}'
+
+simplesamlphp__upstream_git_dest: '{{ simplesamlphp__www + "/sites/"
+                                      + simplesamlphp__user }}'
+
+simplesamlphp__upstream_git_version: 'v1.19.0'
+
+simplesamlphp__application_root: '{{ simplesamlphp__upstream_git_dest
+                                     if simplesamlphp__upstream|bool
+                                     else "/usr/share/simplesamlphp" }}'
+
+simplesamlphp__data_path: '/var/lib/simplesamlphp/data'
+
+simplesamlphp__log_path: '/var/log/simplesamlphp'
 
 simplesamlphp__modules:
 
@@ -150,6 +161,15 @@ simplesamlphp__saml_idp_privatekey: 'default.key'
 simplesamlphp__saml_idp_auth: '{{ simplesamlphp__ldap_name }}'
 simplesamlphp__saml_sp_metadata: ''
 
+simplesamlphp__keyring__dependent_gpg_user: '{{ simplesamlphp__user }}'
+
+simplesamlphp__keyring__dependent_gpg_keys:
+
+  - user: '{{ simplesamlphp__user }}'
+    group: '{{ simplesamlphp__group }}'
+    home: '{{ simplesamlphp__home }}'
+    id: '{{ simplesamlphp__upstream_git_gpg_key }}'
+
 simplesamlphp__mariadb__dependent_users:
 
   - user: '{{ simplesamlphp__mariadb_user }}'
@@ -163,7 +183,7 @@ simplesamlphp__nginx__dependent_servers:
 
   - name: '{{ simplesamlphp__fqdn }}'
     filename: 'debops.simplesamlphp'
-    root: '{{ simplesamlphp__www }}/www'
+    root: '{{ simplesamlphp__application_root }}/www'
     webroot_create: False
     type: 'php'
     php_upstream: 'php_simplesamlphp'

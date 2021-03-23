@@ -1,6 +1,7 @@
 ---
-# Copyright (C) 2020 CipherMail B.V. <https://www.ciphermail.com/>
-# Copyright (C) 2020 DebOps <https://debops.org/>
+# Copyright (C) 2020      CipherMail B.V. <https://www.ciphermail.com/>
+# Copyright (C) 2021      Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2020-2021 DebOps <https://debops.org/>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 - include_tasks: init_mariadb.yml
@@ -13,50 +14,119 @@
   register: simplesamlphp__register_packages
   until: simplesamlphp__register_packages is succeeded
 
-- name: Create system group
+- name: Create UNIX group for SimpleSAMLphp
   group:
     name: '{{ simplesamlphp__group }}'
     system: True
-  when: simplesamlphp__upstream|bool
 
-- name: Create system account
+- name: Create UNIX account for SimpleSAMLphp
   user:
     name: '{{ simplesamlphp__user }}'
     group: '{{ simplesamlphp__group }}'
     system: True
     home: '{{ simplesamlphp__home }}'
     shell: '{{ simplesamlphp__shell }}'
+
+- name: Install SimpleSAMLphp from upstream
   when: simplesamlphp__upstream|bool
+  block:
 
-- name: Download and verify SimpleSAMLphp release archive
-  get_url:
-    url: '{{ simplesamlphp__release_url }}'
-    dest: '{{ simplesamlphp__src }}'
-    checksum: '{{ simplesamlphp__release_checksum }}'
-  register: simplesamlphp__register_release_archive
+    - name: Create required directories
+      file:
+        path: '{{ item.path }}'
+        state: 'directory'
+        owner: '{{ item.owner | d(simplesamlphp__user) }}'
+        group: '{{ item.group | d(simplesamlphp__group) }}'
+        mode: '{{ item.mode   | d("0755") }}'
+      loop:
+        - { path: '{{ simplesamlphp__src }}' }
+        - { path: '{{ simplesamlphp__upstream_git_dir  | dirname }}', mode: "0750" }
+        - { path: '{{ simplesamlphp__upstream_git_dest | dirname }}' }
+        - { path: '{{ simplesamlphp__data_path | dirname }}', owner: 'root', group: 'root', mode: '0755' }
+        - { path: '{{ simplesamlphp__data_path }}', owner: 'root', mode: '0730' }
+        - { path: '{{ simplesamlphp__log_path }}',  owner: 'root', mode: '0730' }
 
-- name: Remove old installation directory
-  file:  # noqa no-handler
-    path: '{{ simplesamlphp__www }}'
-    state: 'absent'
-  when: simplesamlphp__register_release_archive.changed
+    - name: Clone SimpleSAMLphp source from upstream repository
+      git:
+        repo: '{{ simplesamlphp__upstream_git_repo }}'
+        dest: '{{ simplesamlphp__upstream_git_dest }}'
+        version: '{{ simplesamlphp__upstream_git_version }}'
+        separate_git_dir: '{{ simplesamlphp__upstream_git_dir }}'
+        verify_commit: True
+        # FIXME: At the moment GPG whitelisting does not work correctly
+        #gpg_whitelist: '{{ [ simplesamlphp__git_gpg_key ] }}'
+      become: True
+      become_user: '{{ simplesamlphp__user }}'
+      notify: [ 'Refresh host facts' ]
+      register: simplesamlphp__register_git
+      until: simplesamlphp__register_git is succeeded
 
-- name: Create new installation directory
-  file:
-    path: '{{ simplesamlphp__www }}'
-    state: 'directory'
-    mode: '0755'
+    - name: Install upstream PHP dependencies
+      composer:
+        command: 'install'
+        working_dir: '{{ simplesamlphp__upstream_git_dest }}'
+      become: True
+      become_user: '{{ simplesamlphp__user }}'
+      register: simplesamlphp__register_upstream_composer
+      until: simplesamlphp__register_upstream_composer is succeeded
+      when: simplesamlphp__register_git is changed
 
-- name: Unpack the release archive
-  unarchive:
-    remote_src: True
-    src: '{{ simplesamlphp__src }}'
-    dest: '{{ simplesamlphp__www }}'
-    extra_opts: [ '--strip-components', '1' ]
-    owner: '{{ simplesamlphp__user }}'
-    group: '{{ simplesamlphp__group }}'
-    mode: 'u=rwX,g=rX,o=rX'
-    creates: '{{ simplesamlphp__www + "/www/" }}'
+    - name: Install upstream NodeJS dependencies
+      npm:
+        path: '{{ simplesamlphp__upstream_git_dest }}'
+      become: True
+      become_user: '{{ simplesamlphp__user }}'
+      register: simplesamlphp__register_upstream_npm
+      until: simplesamlphp__register_upstream_npm is succeeded
+      when: simplesamlphp__register_git is changed
+
+    - name: Build NodeJS assets for upstream installation
+      command: 'npm run build'
+      args:
+        chdir: '{{ simplesamlphp__upstream_git_dest }}'
+      become: True
+      become_user: '{{ simplesamlphp__user }}'
+      when: simplesamlphp__register_upstream_npm is changed
+
+    # The 'npm install' command modifies the comitted 'package-lock.json' file,
+    # which prevents subsequent Ansible runs due to repository having
+    # modifcations. Since we are sticking to a specific git tag, we can roll
+    # back the changes which will not affect anything as long as the checked
+    # out tag stays the same.
+    - name: Check out changed package-lock.json
+      command: 'git checkout package-lock.json'  # noqa command-instead-of-module
+      args:
+        chdir: '{{ simplesamlphp__upstream_git_dest }}'
+      become: True
+      become_user: '{{ simplesamlphp__user }}'
+      when: simplesamlphp__register_upstream_npm is changed
+
+- name: Update permissions on Debian-based installation
+  when: not simplesamlphp__upstream|bool
+  block:
+
+    - name: Update secret file permissions
+      file:
+        path: '/var/lib/simplesamlphp/secrets.inc.php'
+        group: '{{ simplesamlphp__group }}'
+        mode: '0640'
+        state: 'file'
+
+    - name: Get list of dpkg-stateoverride paths
+      shell: "set -o nounset -o pipefail -o errexit && dpkg-statoverride --list | awk '{print $4}'"
+      args:
+        executable: 'bash'
+      register: simplesamlphp__register_statoverride
+      changed_when: False
+      check_mode: False
+
+    - name: Update directory permissions
+      command: 'dpkg-statoverride --update --add root {{ simplesamlphp__group }} 730 {{ item }}'
+      loop: [ '{{ simplesamlphp__data_path }}', '{{ simplesamlphp__log_path }}' ]
+      when: item not in simplesamlphp__register_statoverride.stdout_lines
+
+- name: Refresh host facts when needed
+  meta: 'flush_handlers'
 
 - name: Remove modules with Composer
   composer:

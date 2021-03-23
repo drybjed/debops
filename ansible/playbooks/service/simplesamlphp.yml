@@ -25,8 +25,14 @@
           - '{{ nodejs__keyring__dependent_apt_keys }}'
           - '{{ nginx__keyring__dependent_apt_keys }}'
           - '{{ mariadb__keyring__dependent_apt_keys }}'
+        keyring__dependent_gpg_user: '{{ simplesamlphp__keyring__dependent_gpg_user }}'
+        keyring__dependent_gpg_keys:
+          - '{{ simplesamlphp__keyring__dependent_gpg_keys
+                if simplesamlphp__upstream|bool
+                else [] }}'
       tags: [ 'role::keyring', 'skip::keyring',
-              'role::php', 'role::nodejs', 'role::nginx', 'role::mariadb' ]
+              'role::php', 'role::nodejs', 'role::nginx', 'role::mariadb',
+              'role::simplesamlphp' ]
 
     - name: Prepare php environment
       import_role:
