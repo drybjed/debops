@@ -4,6 +4,10 @@
 # Copyright (C) 2020-2021 DebOps <https://debops.org/>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+- name: Import DebOps global handlers
+  import_role:
+    name: 'global_handlers'
+
 - include_tasks: init_mariadb.yml
   when: simplesamlphp__mariadb
 
@@ -124,6 +128,19 @@
       command: 'dpkg-statoverride --update --add root {{ simplesamlphp__group }} 730 {{ item }}'
       loop: [ '{{ simplesamlphp__data_path }}', '{{ simplesamlphp__log_path }}' ]
       when: item not in simplesamlphp__register_statoverride.stdout_lines
+
+- name: Make sure Ansible local facts directory exists
+  file:
+    dest: '/etc/ansible/facts.d'
+    state: 'directory'
+    mode: '0755'
+
+- name: Configure SimpleSAMLphp local facts
+  template:
+    src: 'etc/ansible/facts.d/simplesamlphp.fact.j2'
+    dest: '/etc/ansible/facts.d/simplesamlphp.fact'
+    mode: '0755'
+  notify: [ 'Refresh host facts' ]
 
 - name: Refresh host facts when needed
   meta: 'flush_handlers'

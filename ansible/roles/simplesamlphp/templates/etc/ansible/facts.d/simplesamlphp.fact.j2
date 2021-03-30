@@ -1,0 +1,45 @@
+#!{{ ansible_python['executable'] }}
+# -*- coding: utf-8 -*-
+
+# Copyright (C) 2021 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-only
+
+# {{ ansible_managed }}
+
+from __future__ import print_function
+from json import load, loads, dumps
+from sys import exit
+import subprocess
+import signal
+import os
+
+upstream_install_path = loads('''{{ simplesamlphp__upstream_git_dest
+                                    | to_nice_json }}''')
+
+output = {'installed': False}
+
+try:
+    with open(os.devnull, 'w') as devnull:
+        dpkg_stdout = subprocess.check_output(
+            ["LC_MESSAGES=C dpkg-query -W -f='${Version}' 'simplesamlphp'"],
+            shell=True, stderr=devnull)
+        output['version'] = dpkg_stdout.decode('utf-8').split('-')[0]
+        output['installed'] = True
+
+except subprocess.CalledProcessError:
+    # Debian package is not installed, perhaps upstream install?
+    try:
+        if os.path.isfile(os.path.join(
+                upstream_install_path, 'extra', 'simplesamlphp.spec')):
+            with open(
+                    os.path.join(upstream_install_path, 'extra',
+                                 'simplesamlphp.spec')) as spec:
+                for line in spec:
+                    if line.startswith('%define version'):
+                        output['version'] = line.strip().split()[2]
+                        output['installed'] = True
+    except Exception:
+        pass
+
+print(dumps(output, sort_keys=True, indent=4))

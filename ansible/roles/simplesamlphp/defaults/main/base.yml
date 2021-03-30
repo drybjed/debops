@@ -15,6 +15,8 @@ simplesamlphp__base_packages: '{{ []
 
 simplesamlphp__packages: []
 
+simplesamlphp__version: '{{ ansible_local.simplesamlphp.version | d("0.0.0") }}'
+
 simplesamlphp__user: 'simplesamlphp'
 
 simplesamlphp__group: 'simplesamlphp'
