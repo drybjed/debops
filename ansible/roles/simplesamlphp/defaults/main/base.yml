@@ -52,6 +52,11 @@ simplesamlphp__application_root: '{{ simplesamlphp__upstream_git_dest
                                      if simplesamlphp__upstream|bool
                                      else "/usr/share/simplesamlphp" }}'
 
+simplesamlphp__config_path: '{{ (simplesamlphp__application_root
+                                 + "/config")
+                                if simplesamlphp__upstream|bool
+                                else "/etc/simplesamlphp" }}'
+
 simplesamlphp__data_path: '/var/lib/simplesamlphp/data'
 
 simplesamlphp__log_path: '/var/log/simplesamlphp'
