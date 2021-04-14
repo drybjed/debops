@@ -1,0 +1,115 @@
+---
+# Copyright (C) 2021 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+simplesamlphp__original_acl:
+
+  - name: 'acl.php'
+    mode: '0640'
+    divert: True
+    comment: |
+      This file defines "named" access control lists, which can
+      be reused in several places.
+    options:
+
+      - name: 'adminlist'
+        raw: |
+          'adminlist' => [
+              //['allow', 'equals', 'mail', 'admin1@example.org'],
+              //['allow', 'has', 'groups', 'admin'],
+              // The default action is to deny access.
+          ],
+        state: 'present'
+
+      - name: 'example-simple'
+        raw: |
+          'example-simple' => [
+              ['allow', 'equals', 'mail', 'admin1@example.org'],
+              ['allow', 'equals', 'mail', 'admin2@example.org'],
+              // The default action is to deny access.
+          ],
+        state: 'present'
+        separator: True
+
+      - name: 'example-deny-some'
+        raw: |
+          'example-deny-some' => [
+              ['deny', 'equals', 'mail', 'eviluser@example.org'],
+              ['allow'], // Allow everybody else.
+          ],
+        state: 'present'
+        separator: True
+
+      - name: 'example-maildomain'
+        raw: |
+          'example-maildomain' => [
+              ['allow', 'equals-preg', 'mail', '/@example\.org$/'],
+              // The default action is to deny access.
+          ],
+        state: 'present'
+        separator: True
+
+      - name: 'example-allow-employees'
+        raw: |
+          'example-allow-employees' => [
+              ['allow', 'has', 'eduPersonAffiliation', 'employee'],
+              // The default action is to deny access.
+          ],
+        state: 'present'
+        separator: True
+
+      - name: 'example-allow-employees-not-students'
+        raw: |
+          'example-allow-employees-not-students' => [
+              ['deny', 'has', 'eduPersonAffiliation', 'student'],
+              ['allow', 'has', 'eduPersonAffiliation', 'employee'],
+              // The default action is to deny access.
+          ],
+        state: 'present'
+        separator: True
+
+      - name: 'example-deny-student-except-one'
+        raw: |
+          'example-deny-student-except-one' => [
+              ['deny', 'and',
+                  ['has', 'eduPersonAffiliation', 'student'],
+                  ['not', 'equals', 'mail', 'user@example.org'],
+              ],
+              ['allow'],
+          ],
+        state: 'present'
+        separator: True
+
+      - name: 'example-allow-or'
+        raw: |
+          'example-allow-or' => [
+              ['allow', 'or',
+                  ['equals', 'eduPersonAffiliation', 'student', 'member'],
+                  ['equals', 'mail', 'someuser@example2.org'],
+              ],
+          ],
+        state: 'present'
+        separator: True
+
+      - name: 'example-allow-all'
+        raw: |
+          'example-allow-all' => [
+              ['allow'],
+          ],
+        state: 'present'
+        separator: True
+
+simplesamlphp__default_acl: []
+
+simplesamlphp__acl: []
+
+simplesamlphp__group_acl: []
+
+simplesamlphp__host_acl: []
+
+simplesamlphp__combined_acl: '{{ simplesamlphp__original_acl
+                                 + simplesamlphp__default_acl
+                                 + simplesamlphp__acl
+                                 + simplesamlphp__group_acl
+                                 + simplesamlphp__host_acl }}'

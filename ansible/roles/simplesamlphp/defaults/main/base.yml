@@ -57,9 +57,21 @@ simplesamlphp__config_path: '{{ (simplesamlphp__application_root
                                 if simplesamlphp__upstream|bool
                                 else "/etc/simplesamlphp" }}'
 
+simplesamlphp__metadata_path: '{{ (simplesamlphp__application_root
+                                    + "/metadata")
+                                   if simplesamlphp__upstream|bool
+                                   else "/etc/simplesamlphp/metadata" }}'
+
 simplesamlphp__data_path: '/var/lib/simplesamlphp/data'
 
 simplesamlphp__log_path: '/var/log/simplesamlphp'
+
+simplesamlphp__default_authsource: ''
+
+simplesamlphp__config_pipeline: '{{ simplesamlphp__combined_configuration
+                                    + simplesamlphp__combined_authsources
+                                    + simplesamlphp__combined_acl
+                                    + simplesamlphp__combined_metadata }}'
 
 simplesamlphp__modules:
 

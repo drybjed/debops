@@ -155,7 +155,7 @@
     divert: '{{ (item.config_path | d(simplesamlphp__config_path)) + "/" + ((item.filename | d(item.name)) | regex_replace("\.php$", ".dpkg-divert.php")) }}'
     state: '{{ "present" if (item.state|d("present") not in [ "absent", "ignore" ]) else "absent" }}'
     delete: True
-  loop: '{{ q("flattened", simplesamlphp__combined_configuration) | parse_kv_items }}'
+  loop: '{{ q("flattened", simplesamlphp__config_pipeline) | parse_kv_items }}'
   loop_control:
     label: '{{ {"name": (item.filename | d(item.name)), "state": item.state|d("present") } }}'
   when: (not simplesamlphp__upstream|bool and ansible_pkg_mgr == 'apt' and
@@ -167,7 +167,7 @@
   file:
     path: '{{ (item.config_path | d(simplesamlphp__config_path)) + "/" + (item.filename | d(item.name)) }}'
     state: 'absent'
-  loop: '{{ q("flattened", simplesamlphp__combined_configuration) | parse_kv_items }}'
+  loop: '{{ q("flattened", simplesamlphp__config_pipeline) | parse_kv_items }}'
   loop_control:
     label: '{{ {"name": (item.filename | d(item.name)), "state": item.state|d("present") } }}'
   when: item.state|d('present') == 'absent' and not (item.divert|d())|bool
@@ -175,12 +175,19 @@
 
 - name: Generate SimpleSAMLphp configuration files
   template:
-    src: 'etc/simplesamlphp/template.php.j2'
-    dest: '{{ (item.config_path | d(simplesamlphp__config_path)) + "/" + (item.filename | d(item.name)) }}'
+    src: '{{ ("etc/simplesamlphp/"
+              + ("metadata/template.php.j2"
+                 if (item.type|d("config") == "metadata")
+                 else "template.php.j2")) }}'
+    dest: '{{ (item.config_path
+               | d(simplesamlphp__metadata_path
+                   if (item.type|d("config") == "metadata")
+                       else simplesamlphp__config_path
+                  )) + "/" + (item.filename | d(item.name)) }}'
     owner: 'root'
     group: '{{ simplesamlphp__group }}'
     mode: '{{ item.mode | d("0640") }}'
-  loop: '{{ q("flattened", simplesamlphp__combined_configuration) | parse_kv_items }}'
+  loop: '{{ q("flattened", simplesamlphp__config_pipeline) | parse_kv_items }}'
   loop_control:
     label: '{{ {"name": (item.filename | d(item.name)), "state": item.state|d("present") } }}'
   when: item.state|d('present') not in [ 'absent', 'init', 'ignore' ]
