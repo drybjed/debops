@@ -63,11 +63,18 @@
     - role: python
       tags: [ 'role::python', 'skip::python', 'role::mariadb', 'role::postgresql' ]
       python__dependent_packages3:
+        - '{{ ldap__python__dependent_packages3 }}'
         - '{{ mariadb__python__dependent_packages3 }}'
         - '{{ nginx__python__dependent_packages3 }}'
       python__dependent_packages2:
+        - '{{ ldap__python__dependent_packages2 }}'
         - '{{ mariadb__python__dependent_packages2 }}'
         - '{{ nginx__python__dependent_packages2 }}'
+
+    - role: ldap
+      tags: [ 'role::ldap', 'skip::ldap' ]
+      ldap__dependent_tasks:
+        - '{{ simplesamlphp__ldap__dependent_tasks }}'
 
     - role: nodejs
       tags: [ 'role::nodejs', 'skip::nodejs' ]

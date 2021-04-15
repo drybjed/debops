@@ -150,31 +150,6 @@ simplesamlphp__pki_realm: 'domain'
 simplesamlphp__certdir: '{{ simplesamlphp__pki_path + "/"
                             + simplesamlphp__pki_realm + "/" }}'
 
-simplesamlphp__ldap: True
-simplesamlphp__ldap_name: '{{ simplesamlphp__ldap_hostname }}'
-simplesamlphp__ldap_hostname: 'ldap.{{ simplesamlphp__domain }}'
-simplesamlphp__ldap_tls: True
-simplesamlphp__ldap_debug: False
-simplesamlphp__ldap_timeout: 0
-simplesamlphp__ldap_port: 389
-simplesamlphp__ldap_referrals: True
-simplesamlphp__ldap_attributes: []
-simplesamlphp__ldap_basedn: '{{ ansible_local.ldap.basedn
-                                if (ansible_local|d() and
-                                    ansible_local.ldap|d() and
-                                    ansible_local.ldap.basedn|d())
-                                else "dc=" + simplesamlphp__domain.split(".") | join(",dc=") }}'
-simplesamlphp__ldap_dnpattern: 'uid=%username%,ou=People,{{ simplesamlphp__ldap_basedn }}'
-simplesamlphp__ldap_search: False
-simplesamlphp__ldap_search_base: 'ou=People,{{ simplesamlphp__ldap_basedn }}'
-simplesamlphp__ldap_search_attributes: [ 'uid' ]
-simplesamlphp__ldap_search_filter: '(objectClass=inetOrgPerson)'
-simplesamlphp__ldap_search_username: ''
-simplesamlphp__ldap_search_password: ''
-simplesamlphp__ldap_priv_read: 'FALSE'
-simplesamlphp__ldap_priv_username: ''
-simplesamlphp__ldap_priv_password: ''
-
 simplesamlphp__saml_idp_certificate: 'default.crt'
 simplesamlphp__saml_idp_privatekey: 'default.key'
 simplesamlphp__saml_idp_auth: '{{ simplesamlphp__ldap_name }}'

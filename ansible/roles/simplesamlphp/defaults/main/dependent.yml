@@ -13,6 +13,17 @@ simplesamlphp__keyring__dependent_gpg_keys:
     home: '{{ simplesamlphp__home }}'
     id: '{{ simplesamlphp__upstream_git_gpg_key }}'
 
+simplesamlphp__ldap__dependent_tasks:
+
+  - name: 'Create SimpleSAMLphp account for {{ simplesamlphp__ldap_device_dn | join(",") }}'
+    dn: '{{ simplesamlphp__ldap_binddn }}'
+    objectClass: '{{ simplesamlphp__ldap_self_object_classes }}'
+    attributes: '{{ simplesamlphp__ldap_self_attributes }}'
+    state: '{{ "present"
+                if (simplesamlphp__ldap_enabled|bool and
+                    simplesamlphp__ldap_device_dn|d())
+                else "ignore" }}'
+
 simplesamlphp__mariadb__dependent_users:
 
   - user: '{{ simplesamlphp__mariadb_user }}'

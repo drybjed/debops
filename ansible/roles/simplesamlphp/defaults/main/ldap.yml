@@ -1,0 +1,55 @@
+---
+# Copyright (C) 2020      CipherMail B.V. <https://www.ciphermail.com/>
+# Copyright (C) 2021      Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2020-2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+simplesamlphp__ldap_enabled: '{{ True
+                                 if (ansible_local|d() and ansible_local.ldap|d() and
+                                    (ansible_local.ldap.enabled|d())|bool)
+                                 else False }}'
+
+simplesamlphp__ldap_authsource_name: '{{ simplesamlphp__domain | replace(".", "-") + "-ldap" }}'
+
+simplesamlphp__ldap_base_dn: '{{ ansible_local.ldap.base_dn|d([]) }}'
+
+simplesamlphp__ldap_device_dn: '{{ ansible_local.ldap.device_dn|d([]) }}'
+
+simplesamlphp__ldap_self_rdn: 'uid=simplesamlphp'
+
+simplesamlphp__ldap_self_object_classes: [ 'account', 'simpleSecurityObject' ]
+
+simplesamlphp__ldap_self_attributes:
+  uid: '{{ simplesamlphp__ldap_self_rdn.split("=")[1] }}'
+  userPassword: '{{ simplesamlphp__ldap_bindpw }}'
+  host: '{{ ansible_fqdn }}'
+  description: 'Account used by the "SimpleSAMLphp" service to access the LDAP directory'
+
+simplesamlphp__ldap_binddn: '{{ ([ simplesamlphp__ldap_self_rdn ]
+                                 + simplesamlphp__ldap_device_dn) | join(",") }}'
+
+simplesamlphp__ldap_bindpw: '{{ lookup("password", secret + "/ldap/credentials/"
+                                + simplesamlphp__ldap_binddn | to_uuid + ".password length=32 "
+                                + "chars=alpha,digits,!@_#$%^&*") }}'
+
+simplesamlphp__ldap_people_rdn: '{{ ansible_local.ldap.people_rdn|d("ou=People") }}'
+
+simplesamlphp__ldap_people_dn: '{{ [ simplesamlphp__ldap_people_rdn ]
+                                   + simplesamlphp__ldap_base_dn }}'
+
+simplesamlphp__ldap_server_uri: '{{ ansible_local.ldap.uri|d([""]) | first }}'
+
+simplesamlphp__ldap_server_host: '{{ ansible_local.ldap.hosts|d([]) | first }}'
+
+simplesamlphp__ldap_server_port: '{{ ansible_local.ldap.port
+                                     |d(("389" if simplesamlphp__ldap_start_tls|bool else "636")) }}'
+
+simplesamlphp__ldap_start_tls: '{{ ansible_local.ldap.start_tls | d(True) }}'
+
+simplesamlphp__ldap_attributes: []
+
+simplesamlphp__ldap_dnpattern: 'uid=%username%,{{ simplesamlphp__ldap_people_dn | join(",") }}'
+
+simplesamlphp__ldap_search_attributes: [ 'uid', 'mail' ]
+
+simplesamlphp__ldap_search_filter: '(objectClass=inetOrgPerson)'
