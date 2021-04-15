@@ -92,10 +92,10 @@ simplesamlphp__original_metadata:
           G Suite. In example, if your Google account is foo.com, and you have a user that has an email john@foo.com, then you
           must set the simplesaml.nameidattribute to be the name of an attribute that for this user has the value of 'john'.
         data:
-        - AssertionConsumerService: 'https://www.google.com/a/g.feide.no/acs'
-          NameIDFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress'
-          simplesaml.nameidattribute: 'uid'
-          simplesaml.attributes: False
+          - AssertionConsumerService: 'https://www.google.com/a/g.feide.no/acs'
+            NameIDFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress'
+            simplesaml.nameidattribute: 'uid'
+            simplesaml.attributes: False
         separator: True
 
       - name: 'https://legacy.example.edu'
@@ -115,7 +115,6 @@ simplesamlphp__original_metadata:
           ];
         state: 'present'
         separator: True
-
 
 
 simplesamlphp__metadata: []
