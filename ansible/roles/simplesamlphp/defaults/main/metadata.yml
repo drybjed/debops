@@ -5,7 +5,7 @@
 
 simplesamlphp__original_metadata:
 
-  - name: 'smal20-idp-hosted.php'
+  - name: 'saml20-idp-hosted.php'
     type: 'metadata'
     comment: |
       SAML 2.0 IdP configuration for SimpleSAMLphp.
