@@ -31,6 +31,7 @@
   user:
     name: '{{ simplesamlphp__user }}'
     group: '{{ simplesamlphp__group }}'
+    groups: '{{ simplesamlphp__additional_groups }}'
     system: True
     home: '{{ simplesamlphp__home }}'
     shell: '{{ simplesamlphp__shell }}'

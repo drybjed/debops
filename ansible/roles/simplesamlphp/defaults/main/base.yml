@@ -9,9 +9,9 @@ simplesamlphp__upstream: '{{ True
                                  [ "wheezy", "jessie", "stretch", "buster" ])
                              else False }}'
 
-simplesamlphp__base_packages: '{{ []
-                                  if simplesamlphp__upstream|bool
-                                  else [ "simplesamlphp" ] }}'
+simplesamlphp__base_packages:
+  - '{{ [] if simplesamlphp__upstream|bool else [ "simplesamlphp" ] }}'
+  - 'ssl-cert'
 
 simplesamlphp__packages: []
 
@@ -20,6 +20,8 @@ simplesamlphp__version: '{{ ansible_local.simplesamlphp.version | d("0.0.0") }}'
 simplesamlphp__user: 'simplesamlphp'
 
 simplesamlphp__group: 'simplesamlphp'
+
+simplesamlphp__additional_groups: [ 'ssl-cert' ]
 
 simplesamlphp__shell: '/usr/sbin/nologin'
 
