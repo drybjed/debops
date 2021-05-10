@@ -12,8 +12,9 @@
   import_role:
     name: 'global_handlers'
 
-- include_tasks: init_mariadb.yml
-  when: simplesamlphp__mariadb
+- name: Import DebOps secret role
+  import_role:
+    name: 'secret'
 
 - name: Install Debian packages
   package:
@@ -37,7 +38,8 @@
     shell: '{{ simplesamlphp__shell }}'
 
 - name: Install SimpleSAMLphp from upstream
-  when: simplesamlphp__upstream|bool
+  when: simplesamlphp__upstream|bool and
+        not (ansible_local.simplesamlphp.installed|d())|bool
   block:
 
     - name: Create required directories
@@ -97,19 +99,6 @@
       become_user: '{{ simplesamlphp__user }}'
       when: simplesamlphp__register_upstream_npm is changed
 
-    # The 'npm install' command modifies the comitted 'package-lock.json' file,
-    # which prevents subsequent Ansible runs due to repository having
-    # modifcations. Since we are sticking to a specific git tag, we can roll
-    # back the changes which will not affect anything as long as the checked
-    # out tag stays the same.
-    - name: Check out changed package-lock.json
-      command: 'git checkout package-lock.json'  # noqa command-instead-of-module
-      args:
-        chdir: '{{ simplesamlphp__upstream_git_dest }}'
-      become: True
-      become_user: '{{ simplesamlphp__user }}'
-      when: simplesamlphp__register_upstream_npm is changed
-
 - name: Update permissions on Debian-based installation
   when: not simplesamlphp__upstream|bool
   block:
@@ -152,13 +141,13 @@
 
 - name: Manage SimpleSAMLphp configuration file diversions
   dpkg_divert:
-    path: '{{ (item.config_path | d(simplesamlphp__config_path)) + "/" + (item.filename | d(item.name)) }}'
-    divert: '{{ (item.config_path | d(simplesamlphp__config_path)) + "/" + ((item.filename | d(item.name)) | regex_replace("\.php$", ".dpkg-divert.php")) }}'
+    path: '{{ (item.config_path | d(simplesamlphp__config_path)) + "/" + (item.config_file | d(item.name)) }}'
+    divert: '{{ (item.config_path | d(simplesamlphp__config_path)) + "/" + ((item.config_file | d(item.name)) | regex_replace("\.php$", ".dpkg-divert.php")) }}'
     state: '{{ "present" if (item.state|d("present") not in [ "absent", "ignore" ]) else "absent" }}'
     delete: True
   loop: '{{ q("flattened", simplesamlphp__config_pipeline) | parse_kv_items }}'
   loop_control:
-    label: '{{ {"name": (item.filename | d(item.name)), "state": item.state|d("present") } }}'
+    label: '{{ {"name": (item.config_file | d(item.name)), "state": item.state|d("present") } }}'
   when: (not simplesamlphp__upstream|bool and ansible_pkg_mgr == 'apt' and
          item.state|d('present') not in [ 'absent', 'init', 'ignore' ] and
          (item.divert|d())|bool)
@@ -166,11 +155,11 @@
 
 - name: Remove SimpleSAMLphp configuration files when requested
   file:
-    path: '{{ (item.config_path | d(simplesamlphp__config_path)) + "/" + (item.filename | d(item.name)) }}'
+    path: '{{ (item.config_path | d(simplesamlphp__config_path)) + "/" + (item.config_file | d(item.name)) }}'
     state: 'absent'
   loop: '{{ q("flattened", simplesamlphp__config_pipeline) | parse_kv_items }}'
   loop_control:
-    label: '{{ {"name": (item.filename | d(item.name)), "state": item.state|d("present") } }}'
+    label: '{{ {"name": (item.config_file | d(item.name)), "state": item.state|d("present") } }}'
   when: item.state|d('present') == 'absent' and not (item.divert|d())|bool
   tags: [ 'role::simplesamlphp:config' ]
 
@@ -184,47 +173,99 @@
                | d(simplesamlphp__metadata_path
                    if (item.type|d("config") == "metadata")
                        else simplesamlphp__config_path
-                  )) + "/" + (item.filename | d(item.name)) }}'
+                  )) + "/" + (item.config_file | d(item.name)) }}'
     owner: 'root'
     group: '{{ simplesamlphp__group }}'
     mode: '{{ item.mode | d("0640") }}'
   loop: '{{ q("flattened", simplesamlphp__config_pipeline) | parse_kv_items }}'
   loop_control:
-    label: '{{ {"name": (item.filename | d(item.name)), "state": item.state|d("present") } }}'
+    label: '{{ {"name": (item.config_file | d(item.name)), "state": item.state|d("present") } }}'
   when: item.state|d('present') not in [ 'absent', 'init', 'ignore' ]
   tags: [ 'role::simplesamlphp:config' ]
 
-- name: Remove modules with Composer
-  composer:
-    command: 'remove'
-    arguments: '{{ item.name }}'
-    working_dir: '{{ simplesamlphp__www }}'
-  become: True
-  become_user: '{{ simplesamlphp__user }}'
-  when: item.state|d("present") == "absent"
-  loop: '{{ simplesamlphp__modules }}'
-
-- name: Install modules with Composer
+- name: Install SimpleSAMLphp modules via Composer
   composer:
     command: 'require'
-    arguments: '{{ item.name + " " + item.version|d() }}'
-    working_dir: '{{ simplesamlphp__www }}'
+    arguments: '{{ item }}'
+    working_dir: '{{ simplesamlphp__application_root }}'
   become: True
   become_user: '{{ simplesamlphp__user }}'
-  when: item.state|d("present") == "present"
-  loop: '{{ simplesamlphp__modules }}'
+  loop: '{{ q("flattened", simplesamlphp__combined_modules) | parse_kv_items
+            | selectattr("state", "match", "^(enabled|present|disabled)$")
+            | selectattr("package", "defined")
+            | map(attribute="package") | list }}'
+  register: simplesamlphp__register_modules
+  until: simplesamlphp__register_modules is succeeded
+  changed_when: "'Package operations: 0 installs, 0 updates, 0 removals' not in
+                simplesamlphp__register_modules.stdout"
 
-- name: Configure SimpleSAMLphp
-  template:
-    src: '{{ item }}.j2'
-    dest: '{{ simplesamlphp__www + "/" + item }}'
+- name: Manage disabled state of SimpleSAMLphp modules
+  file:
+    path: '{{ simplesamlphp__application_root ~ "/modules/" ~ item.name ~ "/disable" }}'
+    state: '{{ "touch" if (item.state == "disabled") else "absent" }}'
+    access_time: 'preserve'
+    modification_time: 'preserve'
     owner: '{{ simplesamlphp__user }}'
     group: '{{ simplesamlphp__group }}'
-    mode: '0600'
-  no_log: '{{ secret__no_log|d(True) }}'
-  with_items:
-    - 'config/authsources.php'
-    - 'config/config.php'
-    - 'config/module_webauthn.php'
-    - 'metadata/saml20-idp-hosted.php'
-    - 'metadata/saml20-sp-remote.php'
+    mode: 'u=rw,g=r,o=r'
+  loop: '{{ q("flattened", simplesamlphp__combined_modules) | parse_kv_items }}'
+  loop_control:
+    label: '{{ {"name": item.name, "state": item.state|d("present")} }}'
+  when: item.state|d("present") not in [ 'absent', 'init', 'ignore' ]
+
+- name: Manage enabled state of SimpleSAMLphp modules
+  file:
+    path: '{{ simplesamlphp__application_root ~ "/modules/" ~ item.name ~ "/enable" }}'
+    state: '{{ "touch" if (item.state == "enabled") else "absent" }}'
+    access_time: 'preserve'
+    modification_time: 'preserve'
+    owner: '{{ simplesamlphp__user }}'
+    group: '{{ simplesamlphp__group }}'
+    mode: 'u=rw,g=r,o=r'
+  loop: '{{ q("flattened", simplesamlphp__combined_modules) | parse_kv_items }}'
+  loop_control:
+    label: '{{ {"name": item.name, "state": item.state|d("present")} }}'
+  when: item.state|d("present") not in [ 'absent', 'init', 'ignore' ]
+
+- name: Configure Cron module execution times in cron
+  cron:
+    cron_file: 'simplesamlphp'
+    name: '{{ item.name }}'
+    job: '{{ item.job }}'
+    minute: '{{ item.minute | d(omit) }}'
+    special_time: '{{ item.special_time | d(omit) }}'
+    user: '{{ simplesamlphp__user }}'
+    state: 'present'
+  loop:
+    - name: 'Execute daily cron tasks for SimpleSAMLphp'
+      job: '{{ "nice -n 10 php " ~ simplesamlphp__application_root
+               ~ "/modules/cron/bin/cron.php -t daily > /dev/null 2&>1" }}'
+      special_time: 'daily'
+
+    - name: 'Execute hourly cron tasks for SimpleSAMLphp'
+      job: '{{ "nice -n 10 php " ~ simplesamlphp__application_root
+               ~ "/modules/cron/bin/cron.php -t hourly > /dev/null 2&>1" }}'
+      special_time: 'hourly'
+
+    - name: 'Execute frequent cron tasks for SimpleSAMLphp'
+      job: '{{ "nice -n 10 php " ~ simplesamlphp__application_root
+               ~ "/modules/cron/bin/cron.php -t frequent > /dev/null 2&>1" }}'
+      minute: '*/15'
+
+- name: Ensure that the 'cert/' directory exists
+  file:
+    path: '{{ simplesamlphp__cert_path }}'
+    state: 'directory'
+    owner: '{{ simplesamlphp__user }}'
+    group: '{{ simplesamlphp__group }}'
+    mode: 'u=rwX,g=rX,o=rX'
+
+#- name: Generate private and public keys
+#  openssl_privatekey:
+#    path: '{{ simplesamlphp__cert_path + "/" + item.key_file }}'
+#    size: '{{ item.size | d("2048") }}'
+#    owner: '{{ simplesamlphp__user }}'
+#    group: '{{ simplesamlphp__group }}'
+#    mode: 'u=rw,g=r,o='
+#  loop:
+#    - key_file: 'module_oidc.pem'

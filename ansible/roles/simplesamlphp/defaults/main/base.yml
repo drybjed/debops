@@ -12,6 +12,7 @@ simplesamlphp__upstream: '{{ True
 simplesamlphp__base_packages:
   - '{{ [] if simplesamlphp__upstream|bool else [ "simplesamlphp" ] }}'
   - 'ssl-cert'
+  - 'unzip'
 
 simplesamlphp__packages: []
 
@@ -48,7 +49,7 @@ simplesamlphp__upstream_git_dir: '{{ simplesamlphp__src + "/"
 simplesamlphp__upstream_git_dest: '{{ simplesamlphp__www + "/sites/"
                                       + simplesamlphp__user }}'
 
-simplesamlphp__upstream_git_version: 'v1.19.0'
+simplesamlphp__upstream_git_version: 'v1.19.1'
 
 simplesamlphp__application_root: '{{ simplesamlphp__upstream_git_dest
                                      if simplesamlphp__upstream|bool
@@ -64,6 +65,8 @@ simplesamlphp__metadata_path: '{{ (simplesamlphp__application_root
                                    if simplesamlphp__upstream|bool
                                    else "/etc/simplesamlphp/metadata" }}'
 
+simplesamlphp__cert_path: '{{ simplesamlphp__application_root + "/cert" }}'
+
 simplesamlphp__data_path: '/var/lib/simplesamlphp/data'
 
 simplesamlphp__log_path: '/var/log/simplesamlphp'
@@ -73,17 +76,8 @@ simplesamlphp__default_authsource: ''
 simplesamlphp__config_pipeline: '{{ simplesamlphp__combined_configuration
                                     + simplesamlphp__combined_authsources
                                     + simplesamlphp__combined_acl
-                                    + simplesamlphp__combined_metadata }}'
-
-simplesamlphp__modules:
-
-  - name: 'simplesamlphp/simplesamlphp-module-webauthn'
-    version: 'v0.10.0'
-    state: 'present'
-
-simplesamlphp__modules_active: '{{ simplesamlphp__modules
-                                   | selectattr("state", "equalto", "present")
-                                   | map(attribute="name")|list|unique }}'
+                                    + simplesamlphp__combined_metadata
+                                    + simplesamlphp__combined_modules }}'
 
 simplesamlphp__webauthn_attrib_username: 'uid'
 simplesamlphp__webauthn_attrib_displayname: 'cn'
@@ -97,15 +91,18 @@ simplesamlphp__webauthn_use_inflow_registration: True
 simplesamlphp__webauthn_registration_auth_source: '{{ simplesamlphp__ldap_name }}'
 
 simplesamlphp__authproc_idp: |
-  {% if 'simplesamlphp/simplesamlphp-module-webauthn' in simplesamlphp__modules_active %}
+  {% if 'simplesamlphp/simplesamlphp-module-webauthn' in simplesamlphp__active_modules %}
   100 => [
       'class'	=> 'webauthn:WebAuthn',
   ],
   {% endif %}
 
 simplesamlphp__mariadb: '{{ True
-                            if "simplesamlphp/simplesamlphp-module-webauthn" in simplesamlphp__modules_active
+                            if "simplesamlphp/simplesamlphp-module-webauthn" in simplesamlphp__active_modules
                             else False }}'
+
+simplesamlphp__mariadb_enabled: True
+
 simplesamlphp__mariadb_delegate_to: '{{ ansible_local.mariadb.delegate_to
                                         if (ansible_local|d() and
                                             ansible_local.mariadb|d() and
@@ -148,7 +145,7 @@ simplesamlphp__pki_path: '{{ ansible_local.pki.base_path
                                  ansible_local.pki|d() and
                                  ansible_local.pki.base_path|d())
                              else "/etc/pki/realms" }}'
-simplesamlphp__pki_realm: 'domain'
+simplesamlphp__pki_realm: '{{ ansible_local.pki.realm | d("domain") }}'
 simplesamlphp__certdir: '{{ simplesamlphp__pki_path + "/"
                             + simplesamlphp__pki_realm + "/" }}'
 

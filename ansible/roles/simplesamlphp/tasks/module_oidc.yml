@@ -1,0 +1,4 @@
+---
+
+- name: Create private key for OpenID Connect support
+  openssl_privatekey:

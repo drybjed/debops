@@ -1385,10 +1385,44 @@ simplesamlphp__default_configuration:
       - name: 'baseurlpath'
         value: '/'
 
+      - name: 'secretsalt'
+        value: '{{ lookup("password", secret + "/simplesamlphp/"
+                   + inventory_hostname + "/data/secretsalt length=64") }}'
+        state: '{{ "present" if simplesamlphp__upstream|bool else "comment" }}'
+
+      - name: 'auth.adminpassword'
+        value: '{{ lookup("password", secret + "/simplesamlphp/"
+                   + inventory_hostname + "/credentials/admin/password length=24") }}'
+        state: '{{ "present" if simplesamlphp__upstream|bool else "comment" }}'
+
+      - name: 'admin.protectindexpage'
+        value: True
+
+      - name: 'admin.protectmetadata'
+        value: False
+
+      - name: 'technicalcontact_email'
+        value: '{{ "root@" ~ simplesamlphp__domain }}'
+
       # Service is accessed over HTTPS by default when the 'pki' support is
       # configured.
       - name: 'session.cookie.secure'
         value: True
+
+      - name: 'database.dsn'
+        value: '{{ "mysql:host=" + simplesamlphp__mariadb_server
+                   + ";dbname=" + simplesamlphp__mariadb_database }}'
+
+      - name: 'database.username'
+        value: '{{ simplesamlphp__mariadb_user }}'
+
+      - name: 'database.password'
+        value: '{{ simplesamlphp__mariadb_password }}'
+
+      - name: 'store.type'
+        value: '{{ "memcache"
+                   if (ansible_local.memcached.installed|d())|bool
+                   else "phpsession" }}'
 
 simplesamlphp__configuration: []
 

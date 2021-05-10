@@ -1,0 +1,212 @@
+---
+# Copyright (C) 2020      CipherMail B.V. <https://www.ciphermail.com/>
+# Copyright (C) 2021      Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2020-2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+simplesamlphp__default_modules:
+
+  - name: 'cron'
+    config_file: 'module_cron.php'
+    state: 'enabled'
+    comment: 'Configuration for the Cron module.'
+    options:
+
+      - name: 'key'
+        value: '{{ lookup("password", secret + "/simplesamlphp/"
+                   + inventory_hostname + "/data/cron/key") }}'
+
+      - name: 'allowed_tags'
+        value: [ 'daily', 'hourly', 'frequent' ]
+
+      - name: 'debug_message'
+        value: False
+
+      - name: 'sendemail'
+        value: False
+
+  - name: 'oidc'
+    package: 'rediris-es/simplesamlphp-module-oidc dev-master'
+    version: 'dev-master'
+    state: 'init'
+    config_file: 'module_oidc.php'
+    options:
+
+      - name: 'items_per_page'
+        comment: 'Pagination'
+        value: 20
+
+      - name: 'pass_phrase'
+        comment: 'The private key passphrase (optional)'
+        value: 'secret'
+        state: 'comment'
+
+      - name: 'authCodeDuration'
+        comment: 'Tokens TTL'
+        value: 'PT10M'
+
+      - name: 'refreshTokenDuration'
+        value: 'P1M'
+
+      - name: 'accessTokenDuration'
+        value: 'PT1H'
+
+      - name: 'pkce'
+        comment: 'Enable PKCE (RFC7636)'
+        value: False
+
+      - name: 'cron_tag'
+        comment: 'Tag to run storage cleanup script using the cron module...'
+        value: 'hourly'
+
+      - name: 'signer'
+        comment: |
+          Set token signer
+          See Lcobucci\JWT\Signer algorithms in https://github.com/lcobucci/jwt/tree/master/src/Signer
+        raw: |
+          'signer' => \Lcobucci\JWT\Signer\Rsa\Sha256::class,
+        state: 'present'
+
+      - name: 'auth'
+        comment: 'This is the auth source used for authentication'
+        value: '{{ simplesamlphp__default_authsource }}'
+
+      - name: 'useridattr'
+        comment: 'useridattr is the attribute-name that contains the userid as returned from idp'
+        value: 'uid'
+
+      - name: 'authproc.oidc'
+        comment: |
+          Settings regarding Authentication Processing Filters.
+          Note: OIDC authN state array will not contain all of the keys which are available during SAML authN,
+          like Service Provider metadata, etc.
+
+          At the moment, the following SAML authN data will be available during OIDC authN in the sate array:
+          - ['Attributes'], ['Authority'], ['AuthnInstant'], ['Expire']
+          Source and destination will have entity IDs corresponding to the OP issuer ID and Client ID respectively.
+          - ['Source']['entityid'] - contains OpenId Provider issuer ID
+          - ['Destination']['entityid'] - contains Relying Party (OIDC Client) ID
+          In addition to that, the following OIDC related data will be available in the state array:
+          - ['Oidc']['OpenIdProviderMetadata'] - contains information otherwise available from the OIDC configuration URL.
+          - ['Oidc']['RelyingPartyMetadata'] - contains information about the OIDC client making the authN request.
+          - ['Oidc']['AuthorizationRequestParameters'] - contains relevant authorization request query parameters.
+
+          List of authproc filters which will run for every OIDC authN. Add filters as described in docs for SAML authproc
+          See https://simplesamlphp.org/docs/stable/simplesamlphp-authproc
+        value: []
+
+      - name: 'scopes'
+        comment: |
+          You can create as many scopes as you want and assign attributes to them
+          An example scope:
+            'private' => [
+              'description' => 'private scope',
+              'claim_name_prefix' => '', // Prefix to apply for all claim names from this scope
+              'are_multiple_claim_values_allowed' => false, // Are claims for this scope allowed to have multiple values
+              'attributes' => ['national_document_id']
+            ],
+        value: []
+
+      - name: 'translate'
+        raw: |
+          'translate' => [
+              /*
+               * This is the default translate table from SAML to OIDC.
+               * You can change here the behaviour or add more translation to your
+               * private attributes scopes
+               */
+              'sub' => [
+                  'uid',
+                  'eduPersonPrincipalName',
+                  'eduPersonTargetedID',
+                  'eduPersonUniqueId',
+              ],
+              'family_name' => [
+                  'sn',
+              ],
+              'given_name' => [
+                  'givenName',
+              ],
+              'middle_name' => [
+                  // Empty
+              ],
+              'nickname' => [
+                  'eduPersonNickname',
+              ],
+              'preferred_username' => [
+                  'uid',
+              ],
+              'profile' => [
+                  'labeledURI',
+                  'description',
+              ],
+              'picture' => [
+                  'jpegPhoto',
+              ],
+              'website' => [
+                  // Empty
+              ],
+              'gender' => [
+                  // Empty
+              ],
+              'birthdate' => [
+                  // Empty
+              ],
+              'zoneinfo' => [
+                  // Empty
+              ],
+              'locale' => [
+                  'preferredLanguage',
+              ],
+              'updated_at' => [
+                  // Empty
+              ],
+              'email' => [
+                  'mailAddress',
+                  'mail',
+              ],
+              'email_verified' => [
+                  // Empty
+              ],
+              'address' => [
+                  'postalAddress',
+              ],
+              'phone_number' => [
+                  'mobile',
+                  'telephoneNumber',
+                  'homePhone',
+              ],
+              'phone_number_verified' => [
+                  // Empty
+              ],
+            /*
+             * Optional scopes attributes
+             */
+             // 'national_document_id' => [
+             //     'schacPersonalUniqueId',
+             // ],
+          ],
+        state: 'present'
+
+  - name: 'webauthn'
+    package: 'simplesamlphp/simplesamlphp-module-webauthn v0.10.0'
+    state: 'init'
+    config_file: 'module_webauthn.php'
+
+simplesamlphp__dependent_modules: []
+
+simplesamlphp__modules: []
+
+simplesamlphp__group_modules: []
+
+simplesamlphp__host_modules: []
+
+simplesamlphp__combined_modules: '{{ simplesamlphp__default_modules
+                                     + simplesamlphp__dependent_modules
+                                     + simplesamlphp__modules
+                                     + simplesamlphp__group_modules
+                                     + simplesamlphp__host_modules }}'
+
+simplesamlphp__active_modules: '{{ q("flattened", simplesamlphp__combined_modules) | parse_kv_items
+                                   | selectattr("state", "equalto", "present")
+                                   | map(attribute="name") | list | unique }}'

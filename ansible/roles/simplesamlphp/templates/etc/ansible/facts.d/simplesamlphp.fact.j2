@@ -42,4 +42,8 @@ except subprocess.CalledProcessError:
     except Exception:
         pass
 
+if output['installed']:
+    output['app_root'] = loads('''{{ simplesamlphp__application_root
+                                     | to_nice_json }}''')
+
 print(dumps(output, sort_keys=True, indent=4))
