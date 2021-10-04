@@ -76,7 +76,7 @@ libvirtd_qemu__packages: []
 libvirtd_qemu__deployment_mode: '{{ ansible_local.libvirtd.deployment_mode
                                     if (ansible_local.libvirtd.deployment_mode|d())
                                     else ("opennebula"
-                                          if ("debops_service_opennebula_node" in group_names)
+                                          if (ansible_local.opennebula.configured|d())|bool
                                           else "libvirt") }}'
 
                                                                    # ]]]

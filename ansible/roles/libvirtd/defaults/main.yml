@@ -107,7 +107,7 @@ libvirtd__version: '{{ ansible_local.libvirtd.version|d("0.0.0") }}'
 # Specify the type of the environment a given :command:`libvirtd` operates in.
 # Possible choices: ``libvirt``, ``opennebula``.
 libvirtd__deployment_mode: '{{ "opennebula"
-                               if ("debops_service_opennebula_node" in group_names)
+                               if (ansible_local.opennebula.configured|d())|bool
                                else "libvirt" }}'
 
                                                                    # ]]]
