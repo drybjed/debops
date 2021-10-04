@@ -1,0 +1,14 @@
+---
+# Copyright (C) 2021 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-only
+
+- name: Enable opennebula
+  service:
+    name: 'opennebula'
+    enabled: True
+
+- name: Restart opennebula
+  service:
+    name: 'opennebula'
+    state: 'restarted'

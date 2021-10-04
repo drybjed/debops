@@ -1,0 +1,45 @@
+---
+# Copyright (C) 2021 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+opennebula__deploy_type: 'extrepo'
+
+opennebula__upstream_repo: 'https://downloads.opennebula.io/repo'
+
+opennebula__upstream_version: '6.0'
+
+opennebula__upstream_distribution: '{{ ansible_distribution }}'
+
+opennebula__upstream_distribution_version: '{{ ansible_distribution_version }}'
+
+opennebula__base_packages: [ 'opennebula-common' ]
+
+opennebula__packages: []
+
+opennebula__user: 'oneadmin'
+
+opennebula__group: 'oneadmin'
+
+opennebula__home: '/var/lib/one'
+
+opennebula__additional_groups: [ 'sshusers' ]
+
+opennebula__extrepo__dependent_sources:
+
+  - name: 'opennebula'
+    state: '{{ "present"
+               if (opennebula__deploy_type == "extrepo")
+               else "absent" }}'
+
+opennebula__keyring__dependent_apt_keys:
+
+  - repo: '{{ "deb " + opennebula__upstream_repo + "/"
+               + opennebula__upstream_version + "/"
+               + opennebula__upstream_distribution + "/"
+               + opennebula__upstream_distribution_version
+               + " stable opennebula" }}'
+    id: '92B7 7188 854C F23E 1634  DA89 592F 7F05 85E1 6EBF'
+    state: '{{ "present"
+               if (opennebula__deploy_type == "upstream")
+               else "absent" }}'

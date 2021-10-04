@@ -1,0 +1,386 @@
+---
+# Copyright (C) 2021 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-only
+
+one_sunstone__server_original_configuration:
+
+  - name: 'section_server_config'
+    title: 'Server Configuration'
+    state: 'hidden'
+
+  - name: 'tmpdir'
+    comment: 'Directory to store temp files when uploading images'
+    value: '/var/tmp'
+
+  - name: 'one_xmlrpc'
+    comment: 'OpenNebula server contact information'
+    value: 'http://localhost:2633/RPC2'
+
+  - name: 'one_xmlrpc_timeout'
+    value: 60
+
+  - name: 'subscriber_endpoint'
+    comment: |
+      :subscriber_endpoint to subscribe for OpenNebula events must match those in
+      oned.conf
+    value: 'tcp://localhost:2101'
+    state: '{{ "present"
+               if (one_sunstone__version is version("6.0", ">="))
+               else "absent" }}'
+
+  - name: 'host'
+    comment: 'Server Configuration'
+    value: '0.0.0.0'
+
+  - name: 'port'
+    value: 9869
+
+  - name: 'sessions'
+    comment: |
+      Place where to store sessions, this value can be memory, memcache or memcache-dalli
+      Use memcache when starting multiple server processes, for example,
+      with passenger
+
+      NOTE. memcache needs a separate memcached server to be configured. Refer
+      to memcached documentation to configure the server.
+    value: 'memory'
+
+  - name: 'memcache_host'
+    comment: 'Memcache configuration'
+    value: 'localhost'
+
+  - name: 'memcache_port'
+    value: 11211
+
+  - name: 'memcache_namespace'
+    value: 'opennebula.sunstone'
+
+  - name: 'env'
+    comment: |
+      Excution environment for Sunstone
+        dev, Instead of pulling the minified js all the files will be pulled (app/main.js)
+          Check the Building from Source guide in the docs, for details on how to run
+          Sunstone in development
+        prod, the minified js will be used (dist/main.js)
+    value: 'prod'
+
+  - name: 'max_upload_file_size'
+    comment: |
+      Maximum allowed size of uploaded images (in bytes). Leave commented for
+      unlimited size
+    value: 10737418240  # 10 GiB
+    state: 'comment'
+
+  - name: 'section_log'
+    title: 'Log'
+    state: 'hidden'
+
+  - name: 'debug_level'
+    comment: |
+      Log debug level
+        0 = ERROR, 1 = WARNING, 2 = INFO, 3 = DEBUG
+    value: 3
+
+  - name: 'section_proxy'
+    title: 'Proxy'
+    state: 'hidden'
+
+  - name: 'proxy'
+    comment: |
+      Enable an http proxy for the support portal and to download MarketPlaceApps
+      from the MarketPlace to the user's desktop.
+    value: 'http://<hostname>:<port>'
+    state: 'comment'
+
+  - name: 'no_proxy'
+    value: 'localhost, 127.0.0.0/8'
+    state: 'comment'
+
+  - name: 'section_auth'
+    title: 'Auth'
+    state: 'hidden'
+
+  - name: 'auth'
+    comment: |
+      Authentication driver for incoming requests
+        sunstone: for OpenNebula's user-password scheme
+        x509: for x509 certificates based authentication
+        opennebula: the authentication will be done by the opennebula core using the
+          driver defined for the user
+        remote: performs the login based on a Kerberos REMOTE_USER variable or
+          X-Auth-Username header provided by authentication backend
+    value: 'opennebula'
+
+  - name: 'core_auth'
+    comment: |
+      Authentication driver to communicate with OpenNebula core
+        cipher, for symmetric cipher encryption of tokens
+        x509, for x509 certificate encryption of tokens
+    value: 'cipher'
+
+  - name: 'two_factor_auth_issuer'
+    comment: 'Two Factor Authentication Issuer Label'
+    value: 'opennebula'
+
+  - name: 'section_webauthn'
+    title: 'WebAuthn'
+    state: 'hidden'
+
+  - name: 'webauthn_origin'
+    comment: |
+      This value needs to match `window.location.origin` evaluated by the User Agent
+      during registration and authentication ceremonies. Remember that WebAuthn
+      requires TLS on anything else than localhost.
+    value: 'http://localhost:9869'
+
+  - name: 'webauthn_rpname'
+    comment: 'Relying Party name for display purposes'
+    value: 'OpenNebula Cloud'
+
+  - name: 'webauthn_timeout'
+    comment: |
+      Optional client timeout hint, in milliseconds. Specifies how long the browser
+      should wait for any interaction with the user.
+    value: 60000
+
+  - name: 'webauthn_rpid'
+    comment: |
+      Optional differing Relying Party ID
+      See https://www.w3.org/TR/webauthn/#relying-party-identifier
+    value: 'example.com'
+    state: 'comment'
+
+  - name: 'webauthn_algorithms'
+    comment: |
+      Supported cryptographic algorithms
+      See https://www.iana.org/assignments/jose/jose.xhtml
+      Possible is any list of
+         ES256 | ES384 | ES512 | PS256 | PS384 | PS512 | RS256 | RS384 | RS512 | RS1
+    value: '[ES256, PS256, RS256]'
+    state: 'comment'
+
+  - name: 'section_upgrades'
+    title: 'Check Upgrades'
+    state: 'hidden'
+
+  - name: 'remote_version'
+    comment: |
+      To check for the latest release. Comment this value if you don't want to check
+      this.
+    value: 'http://downloads.opennebula.org/latest'
+
+  - name: 'section_ui_settings'
+    title: 'UI Settings'
+    state: 'hidden'
+
+  - name: 'vnc_proxy_port'
+    comment: |
+      :vnc_proxy_
+        port:           port where the vnc proxy will listen. Could be prefixed with an address on which the sever will be listening (ex: 127.0.0.1:29876).
+        support_wss:    no | yes | only. For yes and only, provide path to
+                        cert and key. "yes" means both ws and wss connections will be
+                        supported.
+        vnc_proxy_cert: Certificate to encrypt wss connections.
+        vnc_proxy_key:  Key for wss connections. Only necessary if not included in cert.
+        vnc_proxy_ipv6: Enable ipv6 support for novnc-server
+
+      :vnc_client_port: port where the vnc JS client will connect
+        If not set, will use the port section of :vnc_proxy_port
+      :vnc_request_password: true | false
+        Request VNC password for external windows, by default it will not be requested
+
+      :allow_vnc_federation: yes | no
+        Allow VNC functionality in remote OpenNebula in a federation (needs special setup)
+    value: 29876
+
+  - name: 'vnc_client_port'
+    value: '443/websockify'
+
+  - name: 'vnc_proxy_support_wss'
+    value: 'no'
+
+  - name: 'vnc_proxy_cert'
+    value: ''
+
+  - name: 'vnc_proxy_key'
+    value: ''
+
+  - name: 'vnc_proxy_ipv6'
+    value: 'false'
+
+  - name: 'vnc_request_password'
+    value: 'false'
+
+  - name: 'allow_vnc_federation'
+    value: 'no'
+
+  - name: 'session_expire_time'
+    comment: 'Login Session Length in seconds, defaults to 1 hour.'
+    value: 3600
+    state: 'comment'
+
+  - name: 'keep_me_logged'
+    comment: "True to display 'Keep me logged in' option."
+    value: 'true'
+
+  - name: 'lang'
+    comment: 'Default language setting'
+    value: 'en_US'
+
+  - name: 'table_order'
+    comment: 'Default table order'
+    value: 'desc'
+
+  - name: 'mode'
+    comment: 'Default views directory'
+    value: 'mixed'
+
+  - name: 'get_extended_vm_info'
+    comment: 'Retrieve extended information from OpenNebula'
+    value: 'false'
+
+  - name: 'get_extended_vm_monitoring'
+    comment: 'Retrieve extended information about monitoring from OpenNebula'
+    value: 'false'
+    state: '{{ "present"
+               if (one_sunstone__version is version("6.0", ">="))
+               else "absent" }}'
+
+  - name: 'paginate'
+    comment: 'This is for custom paginate'
+    value: '[[6, 12, 36, 72], [6, 12, 36, 72]]'
+
+  - name: 'leases'
+    comment: 'This display button and clock icon in table of vm'
+    mapping:
+      suspense:
+        time: "+1209600"
+        color: "#000000"
+        warning:
+          time: "-86400"
+          color: "#085aef"
+      terminate:
+        time: "+1209600"
+        color: "#e1ef08"
+        warning:
+          time: "-86400"
+          color: "#ef2808"
+
+  - name: 'threshold_min'
+    comment: 'This chane the thresholds of dashboard resource usage'
+    value: 0
+
+  - name: 'threshold_low'
+    value: 33
+
+  - name: 'threshold_high'
+    value: 66
+
+  - name: 'support_fs'
+    comment: 'Support filesystem'
+    value:
+      - 'ext4'
+      - 'ext3'
+      - 'ext2'
+      - 'xfs'
+    state: '{{ "present"
+               if (one_sunstone__version is version("6.0", ">="))
+               else "absent" }}'
+
+  - name: 'section_official_support'
+    title: 'Check Official Support'
+    state: 'hidden'
+
+  - name: 'token_remote_support'
+    value: ''
+    state: 'comment'
+
+  - name: 'section_marketplace'
+    title: 'Marketplace'
+    state: 'hidden'
+
+  - name: 'marketplace_username'
+    comment: |
+      Marketplace username and password
+      If no credentials are provided, an anonymous client will be used
+    value: ''
+    state: 'comment'
+
+  - name: 'marketplace_password'
+    value: ''
+    state: 'comment'
+
+  - name: 'marketplace_url'
+    comment: |
+      Marketplace endpoint
+      The url should not include the /appliance path since it will be automatically
+      included
+    value: 'http://marketplace.opennebula.io/'
+
+  - name: 'section_oneflow'
+    title: 'OneFlow'
+    state: 'hidden'
+
+  - name: 'oneflow_server'
+    comment: 'OneFlow endpoint'
+    value: 'http://localhost:2474/'
+
+  - name: 'section_routes'
+    title: 'Routes'
+    state: 'hidden'
+
+  - name: 'routes'
+    comment: |
+      Array of files containing ruby code to extend the default sunstone-server
+        routes. These files must be placed inside the custom_routes directory
+        in the sunstone root dir (/usr/lib/one/sunstone/routes)
+
+      Example:
+        $ ls /usr/lib/one/sunstone/routes
+        custom.rb  other.rb
+
+        $ cat /usr/lib/one/sunstone/routes/example.rb
+        get '/custom' do
+            body "It works"
+        end
+    value:
+      - 'oneflow'
+      - 'vcenter'
+      - 'support'
+      - 'nsx'
+
+  - name: 'section_fireedge'
+    title: 'FireEdge'
+    state: '{{ "hidden"
+               if (one_sunstone__version is version("6.0", ">=") and
+                   (ansible_local.one_fireedge.configured|d())|bool)
+               else "absent" }}'
+
+  - name: 'private_fireedge_endpoint'
+    value: 'http://localhost:2616'
+    state: '{{ "present"
+               if (one_sunstone__version is version("6.0", ">=") and
+                   (ansible_local.one_fireedge.configured|d())|bool)
+               else "absent" }}'
+
+  - name: 'public_fireedge_endpoint'
+    value: 'http://localhost:2616'
+    state: '{{ "present"
+               if (one_sunstone__version is version("6.0", ">=") and
+                   (ansible_local.one_fireedge.configured|d())|bool)
+               else "absent" }}'
+
+one_sunstone__server_default_configuration: []
+
+one_sunstone__server_configuration: []
+
+one_sunstone__server_group_configuration: []
+
+one_sunstone__server_host_configuration: []
+
+one_sunstone__server_combined_configuration: '{{ one_sunstone__server_original_configuration
+                                                 + one_sunstone__server_default_configuration
+                                                 + one_sunstone__server_configuration
+                                                 + one_sunstone__server_group_configuration
+                                                 + one_sunstone__server_host_configuration }}'

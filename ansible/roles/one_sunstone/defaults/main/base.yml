@@ -1,0 +1,15 @@
+---
+
+one_sunstone__version: '{{ ansible_local.opennebula.version | d("0.0.0") }}'
+
+one_sunstone__base_packages: [ 'opennebula-sunstone' ]
+
+one_sunstone__packages: []
+
+one_sunstone__user: 'oneadmin'
+
+one_sunstone__group: 'oneadmin'
+
+one_sunstone__home: '/var/lib/one'
+
+one_sunstone__fqdn: '{{ ansible_fqdn }}'

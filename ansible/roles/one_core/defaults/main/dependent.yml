@@ -1,0 +1,13 @@
+---
+# Copyright (C) 2021 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+one_core__mariadb__dependent_users:
+
+  - database: '{{ one_core__database_name }}'
+    user: '{{ one_core__database_user }}'
+    owner: '{{ one_core__user }}'
+    group: '{{ one_core__group }}'
+    home: '{{ one_core__home }}'
+    system: True

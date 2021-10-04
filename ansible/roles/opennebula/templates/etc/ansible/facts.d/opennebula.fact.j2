@@ -1,0 +1,44 @@
+#!{{ ansible_python['executable'] }}
+# -*- coding: utf-8 -*-
+
+# Copyright (C) 2021 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-only
+
+# {{ ansible_managed }}
+
+from __future__ import print_function
+from json import dumps
+from sys import exit
+import subprocess
+import os
+
+output = {'configured': False}
+
+try:
+    version_stdout = subprocess.check_output(
+            ["dpkg-query", "-W", "-f=${Version}",
+             "opennebula-common"]).decode('utf-8').split('~')[0].split('-')[0]
+    output['version'] = version_stdout
+    output['configured'] = True
+
+    # These are hardcoded in OpenNebula postinst scripts
+    output['user'] = 'oneadmin'
+    output['group'] = 'oneadmin'
+
+    ssh_public_key = '/var/lib/one/.ssh/id_rsa.pub'
+    try:
+        if (os.path.exists(ssh_public_key) and
+                os.path.isfile(ssh_public_key)):
+            ssh_keys = []
+            with open(ssh_public_key, 'r') as pubkey:
+                for line in pubkey:
+                    ssh_keys.append(line.strip())
+            output['sshkeys'] = ssh_keys
+    except Exception:
+        pass
+
+except Exception:
+    pass
+
+print(dumps(output, sort_keys=True, indent=4))

@@ -1,0 +1,57 @@
+---
+# Copyright (C) 2021 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-only
+
+# Configure common OpenNebula environment
+- import_playbook: 'opennebula.yml'
+
+
+- name: Manage OpenNebula Sunstone web interface
+  collections: [ 'debops.debops', 'debops.roles01',
+                 'debops.roles02', 'debops.roles03' ]
+  hosts: [ 'debops_service_one_sunstone' ]
+  become: True
+
+  environment: '{{ inventory__environment | d({})
+                   | combine(inventory__group_environment | d({}))
+                   | combine(inventory__host_environment  | d({})) }}'
+
+  pre_tasks:
+
+    - name: Apply keyring configuration for dependent roles
+      import_role:
+        name: 'keyring'
+      vars:
+        keyring__dependent_apt_keys:
+          - '{{ nginx__keyring__dependent_apt_keys }}'
+      tags: [ 'role::keyring', 'skip::keyring', 'role::nginx' ]
+
+  roles:
+
+    - role: apt_preferences
+      tags: [ 'role::apt_preferences', 'skip::apt_preferences' ]
+      apt_preferences__dependent_list:
+        - '{{ nginx__apt_preferences__dependent_list }}'
+
+    - role: python
+      tags: [ 'role::python', 'skip::python', 'role::mariadb' ]
+      python__dependent_packages3:
+        - '{{ nginx__python__dependent_packages3 }}'
+      python__dependent_packages2:
+        - '{{ nginx__python__dependent_packages2 }}'
+
+    - role: ferm
+      tags: [ 'role::ferm', 'skip::ferm' ]
+      ferm__dependent_rules:
+        - '{{ nginx__ferm__dependent_rules }}'
+
+    - role: nginx
+      tags: [ 'role::nginx', 'skip::nginx' ]
+      nginx__dependent_servers:
+        - '{{ one_sunstone__nginx__dependent_servers }}'
+      nginx__dependent_upstreams:
+        - '{{ one_sunstone__nginx__dependent_upstreams }}'
+
+    - role: one_sunstone
+      tags: [ 'role::one_sunstone', 'skip::one_sunstone' ]

@@ -1,0 +1,50 @@
+---
+
+one_sunstone__nginx__dependent_upstreams:
+
+  - name: 'opennebula_sunstone'
+    server: '127.0.0.1:9869'
+
+  - name: 'opennebula_websocketproxy'
+    server: '127.0.0.1:29876'
+
+one_sunstone__nginx__dependent_servers:
+
+  - filename: 'debops.one_sunstone'
+    by_role: 'debops.one_sunstone'
+    type: 'proxy'
+    name: '{{ one_sunstone__fqdn }}'
+    webroot_create: False
+
+    error_pages:
+      '404': '/40x.html'
+      '500 502 503 504': '/50x.html'
+
+    location_list:
+
+      - pattern: '/'
+        options: |
+          # Handle inconsistency in the websockify URLs provided by Sunstone
+          if ($args ~* "host=.+&port=.+&token=.+&encrypt=.*") {
+              rewrite ^/$ /websockify/ last;
+          }
+          proxy_pass http://opennebula_sunstone;
+          proxy_redirect     off;
+          log_not_found      off;
+          proxy_set_header   X-Real-IP $remote_addr;
+          proxy_set_header   Host $http_host;
+          proxy_set_header   X-Forwarded-FOR $proxy_add_x_forwarded_for;
+        state: 'present'
+
+      - pattern: '/websockify'
+        options: |
+          proxy_http_version 1.1;
+          proxy_pass http://opennebula_websocketproxy;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection "upgrade";
+          proxy_send_timeout 15m;
+          proxy_read_timeout 15m;
+          proxy_buffering off;
+        state: 'present'
+
+

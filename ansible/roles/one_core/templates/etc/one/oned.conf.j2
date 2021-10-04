@@ -1,0 +1,165 @@
+{# Copyright (C) 2021 Maciej Delmanowski <drybjed@gmail.com>
+ # Copyright (C) 2021 DebOps <https://debops.org/>
+ # SPDX-License-Identifier: GPL-3.0-only
+ #}
+# {{ ansible_managed }}
+
+#*******************************************************************************
+#                       OpenNebula Configuration file
+#*******************************************************************************
+
+{% for element in one_core__oned_combined_configuration | parse_kv_items %}
+{%   if element.state|d('present') not in [ 'absent', 'ignore' ] %}
+{%     if element.section_comment|d() %}
+{%       if not loop.first %}
+{{         '' }}
+{%       endif %}
+{%       if element.section_comment_title|d() %}
+{%         set line_header = '#*******************************************************************************' %}
+{%         set line_middle = '-------------------------------------------------------------------------------' %}
+{%         set line_footer = '#*******************************************************************************' %}
+{{         element.section_comment_title | regex_replace('\n$','') | comment(prefix=line_header) -}}
+{%       else %}
+{%         set line_header = '#-------------------------------------------------------------------------------' %}
+{%         set line_middle = '#-------------------------------------------------------------------------------' %}
+{%         set line_footer = '#-------------------------------------------------------------------------------' %}
+{%       endif %}
+{{       element.section_comment | regex_replace('\n$','') | comment(decoration='#  ', prefix=line_middle, postfix=line_footer) }}
+{%     elif element.comment|d() %}
+{%       if not loop.first %}
+{{         '' }}
+{%       endif %}
+{{       element.comment | regex_replace('\n$','') | comment(prefix='', postfix='') -}}
+{%     elif (element.separator|d())|bool %}
+{%       if not loop.first %}
+{{         '' }}
+{%       endif %}
+{%     endif %}
+{%     set element_comment = ('# ' if element.state|d('present') == 'comment' else '') %}
+{%     set element_name = (element.option | d(element.name)) | upper %}
+{%     set element_quote = '' %}
+{%     if element.raw|d() %}
+{{       '{}'.format(element.raw | regex_replace('\n$','')) }}
+{%     elif element.value is defined %}
+{%       if element.value is string and not element.value | bool %}
+{%         set element_value = element.value %}
+{%         set element_quote = '"' %}
+{%       elif element.value | bool and element.value is not iterable %}
+{%         if element.value | string == '1' %}
+{%           set element_value = element.value %}
+{%           if element.value is number %}
+{%             set element_quote = '' %}
+{%           endif %}
+{%         else %}
+{%           set element_value = 'yes' %}
+{%           set element_quote = '"' %}
+{%         endif %}
+{%       elif not element.value | bool and element.value is not iterable %}
+{%         if element.value is not none %}
+{%           if element.value | string == '0' %}
+{%             set element_value = element.value %}
+{%             if element.value is number %}
+{%               set element_quote = '' %}
+{%             endif %}
+{%           else %}
+{%             if element.value | int != 0 %}
+{%               set element_value = element.value %}
+{%               set element_quote = '' %}
+{%             else %}
+{%               set element_value = 'no' %}
+{%               set element_quote = '"' %}
+{%             endif %}
+{%           endif %}
+{%         endif %}
+{%       else %}
+{%         set element_value = element.value %}
+{%         set element_quote = '"' %}
+{%       endif %}
+{%       if element_value is not string and element_value is not mapping and element_value is iterable %}
+{%         for thing in element_value %}
+{{           '{}{} = {}{}{}'.format(element_comment, element_name, element_quote, thing, element_quote) }}
+{%         endfor %}
+{%       else %}
+{%         set element_lines = (element_value | regex_replace('\n$','')).split('\n') %}
+{%         if element_value is iterable and element_lines | count > 1 %}
+{{           '{}{} = {}{}'.format(element_comment, element_name, element_quote, element_lines[0]) }}
+{%           for line in element_lines[1:] %}
+{%             if not loop.last %}
+{{               '{}    {}'.format(element_comment, line) }}
+{%             else %}
+{{               '{}    {}{}'.format(element_comment, line, element_quote) }}
+{%             endif %}
+{%           endfor %}
+{%         else %}
+{{           '{}{} = {}{}{}'.format(element_comment, element_name, element_quote, element_value, element_quote) }}
+{%         endif %}
+{%       endif %}
+{%     elif element.options|d() %}
+{%       if not element.comment|d() %}
+{{         '' }}
+{%       endif %}
+{{       '{}{} = ['.format(element_comment, element_name) }}
+{%       for parameter in element.options %}
+{%         set parameter_name = (parameter.option | d(parameter.name)) | upper %}
+{%         set parameter_quote = '' %}
+{%         set parameter_comma = ('' if loop.last else ',') %}
+{%         if parameter.value is defined %}
+{%           if parameter.value is string and not parameter.value | bool %}
+{%             set parameter_value = parameter.value %}
+{%             set parameter_quote = '"' %}
+{%           elif parameter.value | bool and parameter.value is not iterable %}
+{%             if parameter.value | string == '1' %}
+{%               set parameter_value = parameter.value %}
+{%               if parameter.value is number %}
+{%                 set parameter_quote = '' %}
+{%               endif %}
+{%             else %}
+{%               set parameter_value = 'yes' %}
+{%               set parameter_quote = '"' %}
+{%             endif %}
+{%           elif not parameter.value | bool and parameter.value is not iterable %}
+{%             if parameter.value is not none %}
+{%               if parameter.value | string == '0' %}
+{%                 set parameter_value = parameter.value %}
+{%                 if parameter.value is number %}
+{%                   set parameter_quote = '' %}
+{%                 endif %}
+{%               else %}
+{%                 if parameter.value | int != 0 %}
+{%                   set parameter_value = parameter.value %}
+{%                   set parameter_quote = '' %}
+{%                 else %}
+{%                   set parameter_value = 'no' %}
+{%                   set parameter_quote = '"' %}
+{%                 endif %}
+{%               endif %}
+{%             endif %}
+{%           else %}
+{%             set parameter_value = parameter.value %}
+{%             set parameter_quote = '"' %}
+{%           endif %}
+{%           if parameter_value is not string and parameter_value is not mapping and parameter_value is iterable %}
+{%             for thing in element_value %}
+{{               '{}    {} = {}{}{}'.format(element_comment, parameter_name, parameter_quote, thing, parameter_quote) }}
+{%             endfor %}
+{%           else %}
+{%             set parameter_lines = (parameter_value | regex_replace('\n$','')).split('\n') %}
+{%             if parameter_value is iterable and parameter_lines | count > 1 %}
+{{               '{}    {} = {}{}'.format(element_comment, parameter_name, parameter_quote, parameter_lines[0]) }}
+{%               for line in parameter_lines[1:] %}
+{%                 if not loop.last %}
+{{                   '{}        {}'.format(element_comment, line) }}
+{%                 else %}
+{{                   '{}        {}{}'.format(element_comment, line, parameter_quote) }}
+{%                 endif %}
+{%               endfor %}
+{%             else %}
+{{               '{}    {} = {}{}{}{}'.format(element_comment, parameter_name, parameter_quote, parameter_value, parameter_quote, parameter_comma) }}
+{%             endif %}
+{%           endif %}
+{%         endif %}
+{%       endfor %}
+{{       '{}]'.format(element_comment) }}
+{%     endif %}
+{%   endif %}
+{% endfor %}

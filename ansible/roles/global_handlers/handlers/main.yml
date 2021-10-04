@@ -115,6 +115,10 @@
 
 - import_tasks: 'libvirtd.yml'
 
+- import_tasks: 'one_core.yml'
+
+- import_tasks: 'one_sunstone.yml'
+
 - import_tasks: 'tcpwrappers.yml'
 
 - import_tasks: 'tftpd.yml'

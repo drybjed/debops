@@ -1,0 +1,27 @@
+---
+
+one_node__version: '{{ ansible_local.opennebula.version | d("0.0.0") }}'
+
+one_node__base_packages:
+
+  - '{{ ("opennebula-node-kvm"
+         if (one_node__version is version("6.0", ">="))
+         else "opennebula-node")
+         if (ansible_local.libvirtd.installed|d())|bool
+         else [] }}'
+
+  - '{{ "opennebula-node-lxc"
+        if (one_node__version is version("6.0", ">=") and
+            (ansible_local.lxc.installed|d())|bool)
+        else [] }}'
+
+
+one_node__packages: []
+
+one_node__user: 'oneadmin'
+
+one_node__group: 'oneadmin'
+
+one_node__home: '/var/lib/one'
+
+one_node__core_hosts: '{{ groups["debops_service_one_core"] | d() }}'

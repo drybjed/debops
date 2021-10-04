@@ -1,0 +1,59 @@
+---
+# Copyright (C) 2021 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+- name: Import custom Ansible plugins
+  import_role:
+    name: 'ansible_plugins'
+
+- name: Import DebOps global handlers
+  import_role:
+    name: 'global_handlers'
+
+- name: Import DebOps secret role
+  import_role:
+    name: 'secret'
+
+- name: Install required packages
+  package:
+    name: '{{ q("flattened", (one_sunstone__base_packages
+                              + one_sunstone__packages)) }}'
+    state: 'present'
+  notify: [ 'Enable opennebula-sunstone' ]
+  register: one_sunstone__register_packages
+  until: one_sunstone__register_packages is succeeded
+
+- name: Make sure that Ansible local facts directory exists
+  file:
+    path: '/etc/ansible/facts.d'
+    state: 'directory'
+    mode: '0755'
+
+- name: Save OpenNebula Sunstone local facts
+  template:
+    src: 'etc/ansible/facts.d/one_sunstone.fact.j2'
+    dest: '/etc/ansible/facts.d/one_sunstone.fact'
+    mode: '0755'
+  notify: [ 'Refresh host facts' ]
+
+- name: Update Ansible facts if they were modified
+  meta: 'flush_handlers'
+
+- name: Divert original configuration files
+  dpkg_divert:
+    path: '{{ item }}'
+    state: 'present'
+  loop:
+    - '/etc/one/sunstone-server.conf'
+  notify: [ 'Restart opennebula-sunstone' ]
+  when: ansible_pkg_mgr == 'apt'
+
+- name: Generate Sunstone configuration files
+  template:
+    src: 'etc/one/sunstone-server.conf.j2'
+    dest: '/etc/one/sunstone-server.conf'
+    owner: 'root'
+    group: '{{ one_sunstone__group }}'
+    mode: '0640'
+  notify: [ 'Restart opennebula-sunstone' ]

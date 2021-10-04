@@ -1,0 +1,47 @@
+---
+# Copyright (C) 2021 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+- name: Import DebOps global handlers
+  import_role:
+    name: 'global_handlers'
+
+- name: Install required packages
+  package:
+    name: '{{ q("flattened", (one_node__base_packages
+                              + one_node__packages)) }}'
+    state: 'present'
+  register: one_node__register_packages
+  until: one_node__register_packages is succeeded
+
+- name: Make sure that Ansible local facts directory exists
+  file:
+    path: '/etc/ansible/facts.d'
+    state: 'directory'
+    mode: '0755'
+
+- name: Save OpenNebula Node local facts
+  template:
+    src: 'etc/ansible/facts.d/one_node.fact.j2'
+    dest: '/etc/ansible/facts.d/one_node.fact'
+    mode: '0755'
+  notify: [ 'Refresh host facts' ]
+
+- name: Update Ansible facts if they were modified
+  meta: 'flush_handlers'
+
+- name: Gather facts from OpenNebula Core hosts
+  setup:
+  delegate_to: '{{ item }}'
+  delegate_facts: True
+  loop: '{{ one_node__core_hosts }}'
+  register: one_node__register_core_host_facts
+
+- name: Add OpenNebula Core SSH keys on OpenNebula nodes
+  authorized_key:
+    key: "{{ (hostvars[item]['ansible_local']['opennebula']['sshkeys'] | d([])) | join('\n') }}"
+    user: '{{ one_node__user }}'
+    state: 'present'
+    exclusive: False
+  loop: '{{ one_node__core_hosts }}'

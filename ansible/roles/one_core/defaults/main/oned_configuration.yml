@@ -1,0 +1,1760 @@
+---
+# Copyright (C) 2021 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-only
+
+one_core__oned_original_configuration:
+
+  - name: 'comment_daemon_configuration'
+    section_comment_title: 'Daemon configuration attributes'
+    section_comment: |
+      MANAGER_TIMER: Time in seconds the core uses to evaluate periodical functions.
+      MONITORING_INTERVALS cannot have a smaller value than MANAGER_TIMER.
+
+      MONITORING_INTERVAL_MARKET: Time in seconds between market monitorization.
+      MONITORING_INTERVAL_DATASTORE: Time in seconds between image monitorization.
+      MONITORING_INTERVAL_DB_UPDATE: Time in seconds between DB writes of VM
+      monitoring information. -1 to disable DB updating and 0 to write every update
+
+      DS_MONITOR_VM_DISK: Number of MONIROTING_INTERVAL_DATASTORE intervals to monitor
+      VM disks. 0 to disable. Only applies to fs and fs_lvm datastores
+
+      HOST_PER_INTERVAL: Number of hosts monitored in each interval.
+
+      VM_PER_INTERVAL: Number of VMs monitored in each interval, if the individual
+      VM monitoring is set to yes.
+
+      SCRIPTS_REMOTE_DIR: Remote path to store the monitoring and VM management
+      scripts.
+
+      DB: Configuration attributes for the database backend
+       backend : can be sqlite or mysql (default is sqlite)
+       server  : (mysql) host name or an IP address for the MySQL server
+       port    : (mysql) port for the connection to the server.
+                         If set to 0, the default port is used.
+       user    : (mysql) user's MySQL login ID
+       passwd  : (mysql) the password for user
+       db_name : (mysql) the database name
+       connections: (mysql) number of max. connections to mysql server
+       compare_binary: (mysql) compare strings using BINARY clause
+                       makes name searches case sensitive.
+       encoding: charset to use for the db connections
+       timeout : (sqlite) timeout in ms for acquiring lock to DB,
+                 should be at least 100 ms
+       errors_limit : number of consecutive DB errors to stop oned node in HA
+                      default 25, use -1 to disable this feature
+
+      VNC_PORTS: VNC port pool for automatic VNC port assignment, if possible the
+      port will be set to ``START`` + ``VMID``
+       start   : first port to assign
+       reserved: comma separated list of ports or ranges. Two numbers separated by
+       a colon indicate a range.
+
+      LOG: Configuration for the logging system
+       system: defines the logging system:
+          file      to log in the oned.log file
+          syslog    to use the syslog facilities
+          std       to use the default log stream (stderr) to use with systemd
+       debug_level: 0 = ERROR, 1 = WARNING, 2 = INFO, 3 = DEBUG
+    state: 'hidden'
+
+  - name: 'log'
+    options:
+      - 'system': 'file'
+      - 'debug_level': 3
+
+  - name: 'manager_timer'
+    value: 15
+    state: 'comment'
+
+  - name: 'monitoring_interval_datastore'
+    value: 300
+
+  - name: 'monitoring_interval_market'
+    value: 600
+
+  - name: 'monitoring_interval_db_update'
+    value: 0
+
+  - name: 'ds_monitor_vm_disk'
+    value: 10
+    state: 'comment'
+
+  - name: 'host_per_interval'
+    value: 15
+    state: 'comment'
+
+  - name: 'vm_per_interval'
+    value: 5
+    state: 'comment'
+
+  - name: 'scripts_remote_dir'
+    value: '/var/tmp/one'
+
+  - name: 'db-sqlite'
+    option: 'db'
+    options:
+      - 'backend': 'sqlite'
+      - 'timeout': 2500
+
+  - name: 'db-mysql'
+    option: 'db'
+    comment: 'Sample configuration for MySQL'
+    options:
+      - 'backend': 'mysql'
+      - 'server': 'localhost'
+      - 'port': 0
+      - 'user': 'oneadmin'
+      - 'passwd': 'oneadmin'
+      - 'db_name': 'opennebula'
+      - 'connections': 25
+      - 'compare_binary': False
+    state: 'comment'
+
+  - name: 'vnc_ports'
+    options:
+      - 'start': 5900
+      - 'reserved': '32768:65536'
+
+  - name: 'comment_server_network_and_connection'
+    section_comment_title: 'Server network and connection'
+    section_comment: |
+      PORT: Port where oned will listen for xmlrpc calls.
+
+      LISTEN_ADDRESS: Host IP to listen on for xmlrpc calls (default: all IPs).
+
+      HOSTNAME: This Hostname is used by OpenNebula daemon to connect to the
+      frontend during drivers operations. If this variable is not set, OpenNebula
+      will auto detect it. It can be in FQDN format, hostname or an IP
+    state: 'hidden'
+
+  - name: 'port'
+    value: 2633
+
+  - name: 'listen_address'
+    value: '0.0.0.0'
+
+  - name: 'hostname'
+    value: 'one-hostname'
+    state: 'comment'
+
+  - name: 'comment_api_configuration_attributes'
+    section_comment_title: 'API configuration attributes'
+    section_comment: |
+      VM_SUBMIT_ON_HOLD: Forces VMs to be created on hold state instead of pending.
+      Values: YES or NO.
+      API_LIST_ORDER: Sets order (by ID) of elements in list API calls.
+      Values: ASC (ascending order) or DESC (descending order)
+    state: 'hidden'
+
+  - name: 'api_list_order'
+    value: 'DESC'
+    state: 'comment'
+
+  - name: 'vm_submit_on_hold'
+    value: 'NO'
+    state: 'comment'
+
+  - name: 'comment_federation_ha_config'
+    section_comment_title: 'Federation & HA configuration attributes'
+    section_comment: |
+      Control the federation capabilities of oned. Operation in a federated setup
+      requires a special DB configuration.
+
+      FEDERATION: Federation attributes
+       MODE: Operation mode of this oned.
+           STANDALONE no federated.This is the default operational mode
+           MASTER     this oned is the master zone of the federation
+           SLAVE      this oned is a slave zone
+       ZONE_ID: The zone ID as returned by onezone command
+       SERVER_ID: ID identifying this server in the zone as returned by the
+       onezone server-add command. This ID controls the HA configuration of
+       OpenNebula:
+         -1 (default) OpenNebula will operate in "solo" mode no HA
+         <id> Operate in HA (leader election and state replication)
+       MASTER_ONED: The xml-rpc endpoint of the master oned, e.g.
+       http://master.one.org:2633/RPC2
+
+
+       RAFT: Algorithm attributes
+         LIMIT_PURGE: Number of logs that will be deleted on each purge.
+         LOG_RETENTION: Number of DB log records kept, it determines the
+         synchronization window across servers and extra storage space needed.
+         LOG_PURGE_TIMEOUT: How often applied records are purged according the log
+         retention value. (in seconds)
+         ELECTION_TIMEOUT_MS: Timeout to start a election process if no heartbeat
+         or log is received from leader.
+         BROADCAST_TIMEOUT_MS: How often heartbeats are sent to  followers.
+         XMLRPC_TIMEOUT_MS: To timeout raft related API calls. To set an infinite
+         timeout set this value to 0.
+
+       RAFT_LEADER_HOOK: Executed when a server transits from follower->leader
+         The purpose of this hook is to configure the Virtual IP.
+         COMMAND: raft/vip.sh is a fully working script, this should not be changed
+         ARGUMENTS: <interface> and <ip_cidr> must be replaced. For example
+                    ARGUMENTS = "leader ens1 10.0.0.2/24"
+
+       RAFT_FOLLOWER_HOOK: Executed when a server transits from leader->follower
+         The purpose of this hook is to configure the Virtual IP.
+         COMMAND: raft/vip.sh is a fully working script, this should not be changed
+         ARGUMENTS: <interface> and <ip_cidr> must be replaced. For example
+                    ARGUMENTS = "follower ens1 10.0.0.2/24"
+
+      NOTE: Timeout tunning depends on the latency of the servers (network and load)
+      as well as the max downtime tolerated by the system. Timeouts needs to be
+      greater than 10ms
+    state: 'hidden'
+
+  - name: 'federation'
+    options:
+      - 'mode': 'STANDALONE'
+      - 'zone_id': 0
+      - 'server_id': -1
+      - 'master_oned': ''
+
+  - name: 'raft'
+    options:
+      - 'limit_purge': 100000
+      - 'log_retention': 250000
+      - 'log_purge_timeout': 60
+      - 'election_timeout_ms': 5000
+      - 'broadcast_timeout_ms': 500
+      - 'xmlrpc_timeout_ms': 1000
+
+  - name: 'raft_leader_hook'
+    comment: 'Executed when a server transits from follower->leader'
+    options:
+      - 'command': 'raft/vip.sh'
+      - 'arguments': 'leader interface ip_cidr [interface ip_cidr ...]'
+    state: 'comment'
+
+  - name: 'raft_follower_hook'
+    comment: 'Executed when a server transits from leader->follower'
+    options:
+      - 'command': 'raft/vip.sh'
+      - 'arguments': 'follower interface ip_cidr [interface ip_cidr ...]'
+    state: 'comment'
+
+  - name: 'comment_showback_cost'
+    section_comment_title: 'Default showback cost'
+    section_comment: |
+      The following attributes define the default cost for Virtual Machines that
+      don't have a CPU, MEMORY or DISK cost. This is used by the oneshowback
+      calculate method.
+    state: 'hidden'
+
+  - name: 'default_cost'
+    options:
+      - 'cpu_cost': 0
+      - 'memory_cost': 0
+      - 'disk_cost': 0
+
+  - name: 'comment_xml_rpc_server_config'
+    section_comment_title: 'XML-RPC server configuration'
+    section_comment: |
+      These are configuration parameters for oned's xmlrpc-c server
+
+      MAX_CONN: Maximum number of simultaneous TCP connections the server
+      will maintain
+
+      MAX_CONN_BACKLOG: Maximum number of TCP connections the operating system
+      will accept on the server's behalf without the server accepting them from
+      the operating system
+
+      KEEPALIVE_TIMEOUT: Maximum time in seconds that the server allows a
+      connection to be open between RPCs
+
+      KEEPALIVE_MAX_CONN: Maximum number of RPCs that the server will execute on
+      a single connection
+
+      TIMEOUT: Maximum time in seconds the server will wait for the client to
+      do anything while processing an RPC. This timeout will be also used when
+      proxy calls to the master in a federation.
+
+      RPC_LOG: Create a separated log file for xml-rpc requests, in
+      "/var/log/one/one_xmlrpc.log".
+
+      MESSAGE_SIZE: Buffer size in bytes for XML-RPC responses.
+
+      LOG_CALL_FORMAT: Format string to log XML-RPC calls. Interpreted strings:
+         %i -- request id
+         %m -- method name
+         %u -- user id
+         %U -- user name
+         %l[number] -- param list and number of characters (optional) to print
+                       each parameter, default is 20. Example: %l300
+         %p -- user password
+         %g -- group id
+         %G -- group name
+         %a -- auth token
+         %A -- client IP address (only IPv4 supported)
+         %P -- client TCP port
+         %% -- %
+    state: 'hidden'
+
+  - name: 'max_conn'
+    value: 15
+    state: 'comment'
+
+  - name: 'max_conn_backlog'
+    value: 15
+    state: 'comment'
+
+  - name: 'keepalive_timeout'
+    value: 15
+    state: 'comment'
+
+  - name: 'keepalive_max_conn'
+    value: 30
+    state: 'comment'
+
+  - name: 'timeout'
+    value: 15
+    state: 'comment'
+
+  - name: 'rpc_log'
+    value: False
+    state: 'comment'
+
+  - name: 'message_size'
+    value: 1073741824
+    state: 'comment'
+
+  - name: 'log_call_format'
+    value: 'Req:%i UID:%u IP:%A %m invoked %l20'
+    state: 'comment'
+
+  - name: 'comment_physical_net_config'
+    section_comment_title: 'Physical Networks configuration'
+    section_comment: |
+      NETWORK_SIZE: Here you can define the default size for the virtual networks
+
+      MAC_PREFIX: Default MAC prefix to be used to create the auto-generated MAC
+      addresses is defined here (this can be overwritten by the Virtual Network
+      template)
+
+      VLAN_IDS: VLAN ID pool for the automatic VLAN_ID assignment. This pool
+      is for 802.1Q networks (Open vSwitch and 802.1Q drivers). The driver
+      will try first to allocate VLAN_IDS[START] + VNET_ID
+          start: First VLAN_ID to use
+          reserved: Comma separated list of VLAN_IDs or ranges. Two numbers
+          separated by a colon indicate a range.
+
+      VXLAN_IDS: Automatic VXLAN Network ID (VNI) assignment. This is used
+      for vxlan networks.
+          start: First VNI to use
+          NOTE: reserved is not supported by this pool
+
+      PCI_PASSTHROUGH_BUS: Default bus to attach passthrough devices in the guest,
+      in hex notation. It may be overwritten in the PCI device using the BUS
+      attribute.
+    state: 'hidden'
+
+  - name: 'network_size'
+    value: 254
+
+  - name: 'mac_prefix'
+    value: '02:00'
+
+  - name: 'vlan_ids'
+    options:
+      - 'start': '2'
+      - 'reserved': '0, 1, 4095'
+
+  - name: 'vxlan_ids'
+    options:
+      - 'start': '2'
+
+  - name: 'pci_passthrough_bus'
+    value: '0x01'
+    state: 'comment'
+
+  - name: 'comment_datastore_config'
+    section_comment_title: 'DataStore Configuration'
+    section_comment: |
+      DATASTORE_LOCATION: Path for Datastores. It IS the same for all the hosts
+      and front-end. It defaults to /var/lib/one/datastores (in self-contained mode
+      defaults to $ONE_LOCATION/var/datastores). Each datastore has its own
+      directory (called BASE_PATH) in the form: $DATASTORE_LOCATION/<datastore_id>
+      You can symlink this directory to any other path if needed. BASE_PATH is
+      generated from this attribute each time oned is started.
+
+      DATASTORE_CAPACITY_CHECK: Checks that there is enough capacity before
+      creating a new image. Defaults to Yes
+
+      DEFAULT_IMAGE_TYPE: This can take values
+           OS        Image file holding an operating system
+           CDROM     Image file holding a CDROM
+           DATABLOCK Image file holding a datablock, created as an empty block
+
+      DEFAULT_DEVICE_PREFIX: This can be set to
+           hd        IDE prefix
+           sd        SCSI
+           vd        KVM virtual disk
+
+      DEFAULT_CDROM_DEVICE_PREFIX: Same as above but for CDROM devices.
+
+      DEFAULT_IMAGE_PERSISTENT: Control the default value for the PERSISTENT
+      attribute on image creation (oneimage clone, onevm disk-saveas). If blank
+      images will inherit the persistent attribute from the base image.
+
+      DEFAULT_IMAGE_PERSISTENT_NEW: Control the default value for the PERSISTENT
+      attribute on image creation (oneimage create). By default images are no
+      persistent if not set.
+    state: 'hidden'
+
+  - name: 'datastore_location'
+    value: '/var/lib/one/datastores'
+    state: 'comment'
+
+  - name: 'datastore_capacity_check'
+    value: True
+
+  - name: 'default_device_prefix'
+    value: 'sd'
+
+  - name: 'default_cdrom_device_prefix'
+    value: 'hd'
+
+  - name: 'default_image_type'
+    value: 'OS'
+
+  - name: 'default_image_persistent'
+    value: ''
+
+  - name: 'default_image_persistent_new'
+    value: ''
+
+  - name: 'comment_monitor_daemon'
+    section_comment_title: 'Monitor Daemon'
+    section_comment: |
+      Monitor daemon, specific monitor drivers can be added in the monitord
+      configuration file (monitord.conf)
+
+       name       : OpenNebula name for the daemon
+
+       executable : path of the information driver executable, can be an
+                    absolute path or relative to $ONE_LOCATION/lib/mads (or
+                    /usr/lib/one/mads/ if OpenNebula was installed in /)
+
+       arguments  : for the monitor daemon
+         -c : configuration file (monitord.conf by default)
+
+       threads    : number of threads used to process messages from monitor daemon
+    state: 'hidden'
+
+  - name: 'im_mad'
+    options:
+      - name: 'name'
+        value: 'monitord'
+      - 'executable': 'onemonitord'
+      - 'arguments': '-c monitord.conf'
+      - 'threads': 8
+
+  - name: 'comment_virtualization_driver_config'
+    section_comment_title: 'Virtualization Driver Configuration'
+    section_comment: |
+      You can add more virtualization managers with different configurations but
+      make sure it has different names.
+
+       name      : name of the virtual machine manager driver
+
+       executable: path of the virtualization driver executable, can be an
+                   absolute path or relative to $ONE_LOCATION/lib/mads (or
+                   /usr/lib/one/mads/ if OpenNebula was installed in /)
+
+       arguments : for the driver executable
+
+       default   : default values and configuration parameters for the driver, can
+                   be an absolute path or relative to $ONE_LOCATION/etc (or
+                   /etc/one/ if OpenNebula was installed in /)
+
+       type      : driver type, supported drivers: xen, kvm, xml
+
+       keep_snapshots: do not remove snapshots on power on/off cycles and live
+       migrations if the hypervisor supports that.
+
+       live_resize: [yes|no] Hypervisor supports hotplug VCPU and memory
+
+       support_shareable: [yes|no] Hypervisor supports shareable disks
+
+       imported_vms_actions : comma-separated list of actions supported
+                              for imported vms. The available actions are:
+                                  migrate
+                                  live-migrate
+                                  terminate
+                                  terminate-hard
+                                  undeploy
+                                  undeploy-hard
+                                  hold
+                                  release
+                                  stop
+                                  suspend
+                                  resume
+                                  delete
+                                  delete-recreate
+                                  reboot
+                                  reboot-hard
+                                  resched
+                                  unresched
+                                  poweroff
+                                  poweroff-hard
+                                  disk-attach
+                                  disk-detach
+                                  nic-attach
+                                  nic-detach
+                                  snap-create
+                                  snap-delete
+    state: 'hidden'
+
+  - name: 'vm_mad_kvm'
+    section_comment: |
+      KVM Virtualization Driver Manager Configuration
+        -r number of retries when monitoring a host
+        -t number of threads, i.e. number of hosts monitored at the same time
+        -l <actions[=command_name]> actions executed locally, command can be
+            overridden for each action.
+            Valid actions: deploy, shutdown, cancel, save, restore, migrate, poll
+            An example: "-l migrate=migrate_local,save"
+        -d <actions> comma separated list of actions which forward SSH agent
+            from frontend to remote host (default migrate)
+        -p more than one action per host in parallel, needs support from hypervisor
+        -s <shell> to execute remote commands, bash by default
+        -w Timeout in seconds to execute external commands (default unlimited)
+
+      Note: You can use type = "qemu" to use qemu emulated guests, e.g. if your
+      CPU does not have virtualization extensions or use nested Qemu-KVM hosts
+    option: 'vm_mad'
+    options:
+      - name: 'name'
+        value: 'kvm'
+      - 'sunstone_name': 'KVM'
+      - 'executable': 'one_vmm_exec'
+      - 'arguments': '-t 15 -r 0 kvm'
+      - 'default': 'vmm_exec/vmm_exec_kvm.conf'
+      - 'type': 'kvm'
+      - 'keep_snapshots': True
+      - 'live_resize': True
+      - 'support_shareable': True
+      - 'imported_vms_actions': |
+          terminate, terminate-hard, hold, release, suspend,
+          resume, delete, reboot, reboot-hard, resched, unresched,
+          disk-attach, disk-detach, nic-attach, nic-detach,
+          snapshot-create, snapshot-delete
+
+  - name: 'vm_mad_qemu'
+    option: 'vm_mad'
+    comment: 'This variant should be used for nested virtualization'
+    options:
+      - name: 'name'
+        value: 'qemu'
+      - 'sunstone_name': 'QEMU'
+      - 'executable': 'one_vmm_exec'
+      - 'arguments': '-t 15 -r 0 kvm'
+      - 'default': 'vmm_exec/vmm_exec_kvm.conf'
+      - 'type': 'qemu'
+      - 'keep_snapshots': True
+      - 'live_resize': True
+      - 'support_shareable': True
+      - 'imported_vms_actions': |
+          terminate, terminate-hard, hold, release, suspend,
+          resume, delete, reboot, reboot-hard, resched, unresched,
+          disk-attach, disk-detach, nic-attach, nic-detach,
+          snapshot-create, snapshot-delete
+    state: '{{ "present"
+               if (one_core__version is version("6.0.0", ">="))
+               else "absent" }}'
+
+  - name: 'vm_mad_lxd'
+    option: 'vm_mad'
+    section_comment: |
+      LXD Virtualization Driver Manager Configuration
+        -r number of retries when monitoring a host
+        -t number of threads, i.e. number of hosts monitored at the same time
+        -l <actions[=command_name]> actions executed locally, command can be
+            overridden for each action.
+            Valid actions: deploy, shutdown, cancel, save, restore, migrate, poll
+            An example: "-l migrate=migrate_local,save"
+        -d <actions> comma separated list of actions which forward SSH agent
+            from frontend to remote host (default migrate)
+        -p more than one action per host in parallel, needs support from hypervisor
+        -s <shell> to execute remote commands, bash by default
+        -w Timeout in seconds to execute external commands (default unlimited)
+    options:
+      - name: 'name'
+        value: 'lxd'
+      - 'sunstone_name': 'LXD'
+      - 'executable': 'one_vmm_exec'
+      - 'arguments': '-t 15 -r 0 lxd'
+      - 'type': 'xml'
+      - 'keep_snapshots': False
+      - 'imported_vms_actions': |
+          terminate, terminate-hard, reboot, reboot-hard,
+          poweroff, poweroff-hard, suspend, resume,
+          stop, delete, nic-attach, nic-detach
+
+  - name: 'vm_mad_lxc'
+    option: 'vm_mad'
+    section_comment: |
+      LXc Virtualization Driver Manager Configuration
+        -r number of retries when monitoring a host
+        -t number of threads, i.e. number of hosts monitored at the same time
+        -l <actions[=command_name]> actions executed locally, command can be
+            overridden for each action.
+            Valid actions: deploy, shutdown, cancel, save, restore, migrate, poll
+            An example: "-l migrate=migrate_local,save"
+        -d <actions> comma separated list of actions which forward SSH agent
+            from frontend to remote host (default migrate)
+        -p more than one action per host in parallel, needs support from hypervisor
+        -s <shell> to execute remote commands, bash by default
+        -w Timeout in seconds to execute external commands (default unlimited)
+    options:
+      - name: 'name'
+        value: 'lxc'
+      - 'sunstone_name': 'LXC'
+      - 'executable': 'one_vmm_exec'
+      - 'arguments': '-t 15 -r 0 lxc'
+      - 'type': 'xml'
+      - 'keep_snapshots': False
+      - 'imported_vms_actions': |
+          terminate, terminate-hard, reboot, reboot-hard,
+          poweroff, poweroff-hard, suspend, resume,
+          stop, delete, nic-attach, nic-detach
+    state: '{{ "present"
+               if (one_core__version is version("6.0.0", ">="))
+               else "absent" }}'
+
+  - name: 'vm_mad_firecracker'
+    option: 'vm_mad'
+    section_comment: |
+      Firecracker Virtualization Driver Manager Configuration
+        -r number of retries when monitoring a host
+        -t number of threads, i.e. number of hosts monitored at the same time
+        -l <actions[=command_name]> actions executed locally, command can be
+            overridden for each action.
+            Valid actions: deploy, shutdown, cancel, save, restore, migrate, poll
+            An example: "-l migrate=migrate_local,save"
+        -d <actions> comma separated list of actions which forward SSH agent
+            from frontend to remote host (default migrate)
+        -p more than one action per host in parallel, needs support from hypervisor
+        -s <shell> to execute remote commands, bash by default
+        -w Timeout in seconds to execute external commands (default unlimited)
+    options:
+      - name: 'name'
+        value: 'firecracker'
+      - 'sunstone_name': 'Firecracker'
+      - 'executable': 'one_vmm_exec'
+      - 'arguments': '-t 15 -r 0 firecracker'
+      - 'type': 'xml'
+      - 'keep_snapshots': False
+
+  - name: 'vm_mad_vcenter'
+    option: 'vm_mad'
+    section_comment: |
+      vCenter Virtualization Driver Manager Configuration
+        -r number of retries when monitoring a host
+        -t number of threads, i.e. number of hosts monitored at the same time
+        -p more than one action per host in parallel, needs support from hypervisor
+        -s <shell> to execute commands, bash by default
+        -w Timeout in seconds to execute external commands (default unlimited)
+    options:
+      - name: 'name'
+        value: 'vcenter'
+      - 'sunstone_name': 'VMWare vCenter'
+      - 'executable': 'one_vmm_sh'
+      - 'arguments': '-p -t 15 -r 0 -s sh vcenter'
+      - 'type': 'xml'
+      - 'keep_snapshots': True
+      - 'ds_live_migration': True
+      - 'cold_nic_attach': True
+      - 'live_resize': True
+      - 'imported_vms_actions': |
+          terminate, terminate-hard, hold, release, suspend,
+          resume, delete, reboot, reboot-hard, resched, unresched,
+          poweroff, poweroff-hard, disk-attach, disk-detach,
+          nic-attach, nic-detach, snapshot-create, snapshot-delete,
+          migrate, live-migrate
+
+  - name: 'vm_mad_ec2'
+    option: 'vm_mad'
+    section_comment: |
+      EC2 Virtualization Driver Manager Configuration
+        -r number of retries when monitoring a host
+        -t number of threads, i.e. number of actions performed at the same time
+        -w Timeout in seconds to execute external commands (default unlimited)
+        -p more than one action per host in parallel, needs support from hypervisor
+    options:
+      - name: 'name'
+        value: 'ec2'
+      - 'sunstone_name': 'Amazon EC2'
+      - 'executable': 'one_vmm_sh'
+      - 'arguments': '-t 15 -r 0 -w 600 -p ec2'
+      - 'type': 'xml'
+      - 'keep_snapshots': False
+      - 'imported_vms_actions': |
+          terminate, terminate-hard, hold, release, suspend,
+          resume, delete, reboot, reboot-hard, resched, unresched,
+          poweroff, poweroff-hard, disk-attach, disk-detach,
+          nic-attach, nic-detach, snap-create, snap-delete
+    state: '{{ "absent"
+               if (one_core__version is version("6.0.0", ">="))
+               else "comment" }}'
+
+  - name: 'vm_mad_az'
+    option: 'vm_mad'
+    section_comment: |
+      Azure Virtualization Driver Manager Configuration
+        -r number of retries when monitoring a host
+        -t number of threads, i.e. number of actions performed at the same time
+        -w Timeout in seconds to execute external commands (default unlimited)
+    options:
+      - name: 'name'
+        value: 'az'
+      - 'sunstone_name': 'Microsoft Azure'
+      - 'executable': 'one_vmm_sh'
+      - 'arguments': '-t 15 -r 0 az'
+      - 'type': 'xml'
+      - 'keep_snapshots': False
+      - 'imported_vms_actions': |
+          terminate, terminate-hard, hold, release, suspend,
+          resume, delete, reboot, reboot-hard, resched,
+          unresched, poweroff, poweroff-hard, disk-attach,
+          disk-detach, nic-attach, nic-detach,
+          snap-create, snap-delete
+    state: '{{ "absent"
+               if (one_core__version is version("6.0.0", ">="))
+               else "comment" }}'
+
+  - name: 'vm_mad_one'
+    option: 'vm_mad'
+    section_comment: |
+      Hybrid OpenNebula Virtualization Driver Manager Configuration
+        -r number of retries when monitoring a host
+        -t number of threads, i.e. number of actions performed at the same time
+    options:
+      - name: 'name'
+        value: 'one'
+      - 'sunstone_name': 'OpenNebula'
+      - 'executable': 'one_vmm_sh'
+      - 'arguments': '-t 15 -r 0 one'
+      - 'type': 'xml'
+      - 'keep_snapshots': False
+      - 'imported_vms_actions': |
+          terminate, terminate-hard, hold, release, suspend,
+          resume, delete, reboot, reboot-hard, resched, unresched,
+          poweroff, poweroff-hard
+    state: '{{ "absent"
+               if (one_core__version is version("6.0.0", ">="))
+               else "comment" }}'
+
+  - name: 'vm_mad_dummy'
+    option: 'vm_mad'
+    section_comment: 'Dummy Virtualization Driver Configuration'
+    options:
+      - name: 'name'
+        value: 'dummy'
+      - 'sunstone_name': 'Testing'
+      - 'executable': 'one_vmm_dummy'
+      - 'type': 'xml'
+    state: 'comment'
+
+  - name: 'tm_mad'
+    section_comment_title: 'Transfer Manager Driver Configuration'
+    section_comment: |
+      You can add more transfer managers with different configurations but make
+      sure it has different names.
+        name      : name for this transfer driver
+
+        executable: path of the transfer driver executable, can be an
+                    absolute path or relative to $ONE_LOCATION/lib/mads (or
+                    /usr/lib/one/mads/ if OpenNebula was installed in /)
+        arguments :
+            -t: number of threads, i.e. number of transfers made at the same time
+            -d: list of transfer drivers separated by commas, if not defined all the
+                drivers available will be enabled
+            -w: Timeout in seconds to execute external commands (default unlimited)
+    options:
+      - 'executable': 'one_tm'
+      - 'arguments': '-t 15 -d dummy,lvm,shared,fs_lvm,qcow2,ssh,ceph,dev,vcenter,iscsi_libvirt'
+
+  - name: 'datastore_mad'
+    section_comment_title: 'Datastore Driver Configuration'
+    section_comment: |
+      Drivers to manage the datastores, specialized for the storage backend
+        executable: path of the transfer driver executable, can be an
+                    absolute path or relative to $ONE_LOCATION/lib/mads (or
+                    /usr/lib/one/mads/ if OpenNebula was installed in /)
+
+        arguments : for the driver executable
+            -t number of threads, i.e. number of repo operations at the same time
+            -d datastore mads separated by commas
+            -s system datastore tm drivers, used to monitor shared system ds.
+            -w Timeout in seconds to execute external commands (default unlimited)
+    options:
+      - 'executable': 'one_datastore'
+      - 'arguments': '-t 15 -d dummy,fs,lvm,ceph,dev,iscsi_libvirt,vcenter -s shared,ssh,ceph,fs_lvm,qcow2,vcenter'
+
+  - name: 'market_mad'
+    section_comment_title: 'Marketplace Driver Configuration'
+    section_comment: |
+      Drivers to manage different marketplaces, specialized for the storage backend
+        executable: path of the transfer driver executable, can be an
+                    absolute path or relative to $ONE_LOCATION/lib/mads (or
+                    /usr/lib/one/mads/ if OpenNebula was installed in /)
+
+        arguments : for the driver executable
+            -t number of threads, i.e. number of repo operations at the same time
+            -m marketplace mads separated by commas
+            --proxy proxy address if required to access the internet
+            -w Timeout in seconds to execute external commands (default unlimited)
+    options:
+      - 'executable': 'one_market'
+      - 'arguments': '-t 15 -m http,s3,one,linuxcontainers,turnkeylinux,dockerhub'
+
+  - name: 'ipam_mad'
+    section_comment_title: 'IPAM Driver Configuration'
+    section_comment: |
+      Drivers to manage different IPAMs
+        executable: path of the IPAM driver executable, can be an
+                    absolute path or relative to $ONE_LOCATION/lib/mads (or
+                    /usr/lib/one/mads/ if OpenNebula was installed in /)
+
+        arguments : for the driver executable
+            -t number of threads, i.e. number of operations at the same time
+            -i IPAM mads separated by commas
+    options:
+      - 'executable': 'one_ipam'
+      - 'arguments': '-t 1 -i dummy'
+
+  - name: 'hm_mad'
+    section_comment_title: 'Hook Manager Configuration'
+    section_comment: |
+      The Driver (HM_MAD)
+      -----------------------------------------------
+
+      Used to execute the Hooks:
+        executable: path of the hook driver executable, can be an
+                    absolute path or relative to $ONE_LOCATION/lib/mads (or
+                    /usr/lib/one/mads/ if OpenNebula was installed in /)
+
+        arguments : for the driver executable, can be an absolute path or relative
+                    to $ONE_LOCATION/etc (or /etc/one/ if OpenNebula was installed
+                    in /)
+    options:
+      - 'executable': 'one_hm'
+      - 'arguments': '-p 2101 -l 2102 -b 127.0.0.1'
+
+  - name: 'hook_log_conf'
+    section_comment_title: 'Hook Log Configuration'
+    section_comment: |
+      LOG_RETENTION: Number of execution records saved in the database for each hook.
+    options:
+      - 'log_retention': 20
+
+  - name: 'auth_mad'
+    section_comment_title: 'Auth Manager Configuration'
+    section_comment: |
+      AUTH_MAD: The Driver that will be used to authenticate (authn) and
+      authorize (authz) OpenNebula requests. If defined OpenNebula will use the
+      built-in auth policies.
+
+        executable: path of the auth driver executable, can be an
+                    absolute path or relative to $ONE_LOCATION/lib/mads (or
+                    /usr/lib/one/mads/ if OpenNebula was installed in /)
+
+        authn     : list of authentication modules separated by commas, if not
+                    defined all the modules available will be enabled
+        authz     : list of authentication modules separated by commas
+
+      DEFAULT_AUTH: The default authentication driver to use when OpenNebula does
+      not know the user and needs to authenticate it externally.  If you want to
+      use "default" (not recommended, but supported for backwards compatibility
+      reasons) make sure you create a symlink pointing to the actual authentication
+      driver in /var/lib/one/remotes/auth, and add "default" to the 'auth'
+      parameter in the 'AUTH_MAD' section.
+
+      SESSION_EXPIRATION_TIME: Time in seconds to keep an authenticated token as
+      valid. During this time, the driver is not used. Use 0 to disable session
+      caching
+
+      ENABLE_OTHER_PERMISSIONS: Whether or not users can set the permissions for
+      'other', so publishing or sharing resources with others. Users in the oneadmin
+      group will still be able to change these permissions. Values: YES or NO.
+
+      DEFAULT_UMASK: Similar to Unix umask, sets the default resources permissions.
+      Its format must be 3 octal digits. For example a umask of 137 will set
+      the new object's permissions to 640 "um- u-- ---"
+    options:
+      - 'executable': 'one_auth_mad'
+      - 'authn': 'ssh,x509,ldap,server_cipher,server_x509'
+
+  - name: 'default_auth'
+    value: 'default'
+    state: 'comment'
+
+  - name: 'session_expiration_time'
+    value: 900
+
+  - name: 'enable_other_permissions'
+    value: 'YES'
+    state: 'comment'
+
+  - name: 'default_umask'
+    value: 177
+
+  - name: 'onegate_endpoint'
+    section_comment_title: 'OneGate'
+    section_comment: |
+      ONEGATE_ENDPOINT: The URL for the onegate server (the Gate to OpenNebula for
+      VMs). The onegate server is started using a separate command. The endpoint
+      MUST be consistent with the values in onegate-server.conf
+    value: 'http://frontend:5030'
+    state: 'comment'
+
+  - name: 'comment_vm_operations_permissions'
+    section_comment_title: 'VM Operations Permissions'
+    section_comment: |
+      The following parameters define the operations associated to the ADMIN,
+      MANAGE and USE permissions. Note that some VM operations require additional
+      permissions on other objects. Also some operations refers to a class of
+      actions:
+        - disk-snapshot, includes create, delete and revert actions
+        - disk-attach, includes attach and detach actions
+        - nic-attach, includes attach and detach actions
+        - snapshot, includes create, delete and revert actions
+        - resched, includes resched and unresched actions
+    state: 'hidden'
+
+  - name: 'vm_admin_operations'
+    value: 'migrate, delete, recover, retry, deploy, resched'
+
+  - name: 'vm_manage_operations'
+    value: |
+      undeploy, hold, release, stop, suspend, resume, reboot,
+      poweroff, disk-attach, nic-attach, disk-snapshot, terminate,
+      disk-resize, snapshot, updateconf, rename, resize, update,
+      disk-saveas
+
+  - name: 'vm_use_operations'
+    value: ''
+
+  - name: 'comment_default_permissions_acls'
+    section_comment_title: 'Default Permissions for VDC ACL rules'
+    section_comment: |
+      Default ACL rules created when resource is added to a VDC. The following
+      attributes configures the permissions granted to the VDC group for each
+      resource types:
+        DEFAULT_VDC_HOST_ACL: permissions granted on hosts added to a VDC.
+        DEFAULT_VDC_NET_ACL: permissions granted on vnets added to a VDC.
+        DEFAULT_VDC_DATASTORE_ACL: permissions granted on datastores to a VDC.
+
+        DEFAULT_VDC_CLUSTER_HOST_ACL: permissions granted to cluster hosts when a
+        cluster is added to the VDC.
+        DEFAULT_VDC_CLUSTER_NET_ACL: permissions granted to cluster vnets when a
+        cluster is added to the VDC.
+        DEFAULT_VDC_CLUSTER_DATASTORE_ACL: permissions granted to cluster datastores
+        when a cluster is added to the VDC.
+
+      When defining the permissions you can use "" or "-" to not add any rule to
+      that specific resource. Also you can combine several permissions with "+",
+      for exampl "MANAGE+USE". Valid permissions are USE, MANAGE or ADMIN.
+
+      Example:
+      DEFAULT_VDC_HOST_ACL      = "MANAGE"
+      Adds @<gid> HOST/#<hid> MANAGE #<zid> when a host is added to the VDC,
+      eg. onevdc addhost <vdc> <zid> <hid>
+
+      DEFAULT_VDC_VNET_ACL       = "USE"
+      Adds @<gid> NET/#<vnetid> USE #<zid> when a vnet is added to the VDC,
+      eg. onevdc addvnet <vdc> <zid> <vnetid>
+
+      DEFAULT_VDC_DATASTORE_ACL = "USE"
+      Adds @<gid> DATASTORE/#<dsid> USE #<zid> when a vnet is added to the VDC,
+      eg. onevdc adddatastore <vdc> <zid> <dsid>
+
+      DEFAULT_VDC_CLUSTER_HOST_ACL      = "MANAGE"
+      DEFAULT_VDC_CLUSTER_NET_ACL       = "USE"
+      DEFAULT_VDC_CLUSTER_DATASTORE_ACL = "USE"
+      Adds:
+        @<gid> HOST/%<cid> MANAGE #<zid>
+        @<gid> DATASTORE+NET/%<cid> USE #<zid>
+      when a cluster is added to the VDC, e.g. onevdc addcluster <vdc> <zid> <cid>
+    state: 'hidden'
+
+  - name: 'default_vdc_host_acl'
+    value: 'MANAGE'
+
+  - name: 'default_vdc_vnet_acl'
+    value: 'USE'
+
+  - name: 'default_vdc_datastore_acl'
+    value: 'USE'
+
+  - name: 'default_vdc_cluster_host_acl'
+    value: 'MANAGE'
+
+  - name: 'default_vdc_cluster_net_acl'
+    value: 'USE'
+
+  - name: 'default_vdc_cluster_datastore_acl'
+    value: 'USE'
+
+  - name: 'vm_restricted_attr'
+    section_comment_title: 'Restricted Attributes Configuration'
+    section_comment: |
+      The following attributes are restricted to users outside the oneadmin group
+    value:
+      - "CONTEXT/FILES"
+      - "NIC/MAC"
+      - "NIC/VLAN_ID"
+      - "NIC/BRIDGE"
+      - "NIC/FILTER"
+      - "NIC/FILTER_IP_SPOOFING"
+      - "NIC/FILTER_MAC_SPOOFING"
+      - "NIC/INBOUND_AVG_BW"
+      - "NIC/INBOUND_PEAK_BW"
+      - "NIC/INBOUND_PEAK_KB"
+      - "NIC/OUTBOUND_AVG_BW"
+      - "NIC/OUTBOUND_PEAK_BW"
+      - "NIC/OUTBOUND_PEAK_KB"
+      - "NIC/OPENNEBULA_MANAGED"
+      - "NIC/VCENTER_INSTANCE_ID"
+      - "NIC/VCENTER_NET_REF"
+      - "NIC/VCENTER_PORTGROUP_TYPE"
+      - "NIC/EXTERNAL"
+      - "NIC_ALIAS/MAC"
+      - "NIC_ALIAS/VLAN_ID"
+      - "NIC_ALIAS/BRIDGE"
+      - "NIC_ALIAS/INBOUND_AVG_BW"
+      - "NIC_ALIAS/INBOUND_PEAK_BW"
+      - "NIC_ALIAS/INBOUND_PEAK_KB"
+      - "NIC_ALIAS/OUTBOUND_AVG_BW"
+      - "NIC_ALIAS/OUTBOUND_PEAK_BW"
+      - "NIC_ALIAS/OUTBOUND_PEAK_KB"
+      - "NIC_ALIAS/OPENNEBULA_MANAGED"
+      - "NIC_ALIAS/VCENTER_INSTANCE_ID"
+      - "NIC_ALIAS/VCENTER_NET_REF"
+      - "NIC_ALIAS/VCENTER_PORTGROUP_TYPE"
+      - "NIC_ALIAS/EXTERNAL"
+      - "NIC_DEFAULT/MAC"
+      - "NIC_DEFAULT/VLAN_ID"
+      - "NIC_DEFAULT/BRIDGE"
+      - "NIC_DEFAULT/FILTER"
+      - "NIC_DEFAULT/EXTERNAL"
+      - "DISK/TOTAL_BYTES_SEC"
+      - "DISK/TOTAL_BYTES_SEC_MAX_LENGTH"
+      - "DISK/TOTAL_BYTES_SEC_MAX"
+      - "DISK/READ_BYTES_SEC"
+      - "DISK/READ_BYTES_SEC_MAX_LENGTH"
+      - "DISK/READ_BYTES_SEC_MAX"
+      - "DISK/WRITE_BYTES_SEC"
+      - "DISK/WRITE_BYTES_SEC_MAX_LENGTH"
+      - "DISK/WRITE_BYTES_SEC_MAX"
+      - "DISK/TOTAL_IOPS_SEC"
+      - "DISK/TOTAL_IOPS_SEC_MAX_LENGTH"
+      - "DISK/TOTAL_IOPS_SEC_MAX"
+      - "DISK/READ_IOPS_SEC"
+      - "DISK/READ_IOPS_SEC_MAX_LENGTH"
+      - "DISK/READ_IOPS_SEC_MAX"
+      - "DISK/WRITE_IOPS_SEC"
+      - "DISK/WRITE_IOPS_SEC_MAX_LENGTH"
+      - "DISK/WRITE_IOPS_SEC_MAX"
+      - "DISK/SIZE_IOPS_SEC"
+      - "DISK/OPENNEBULA_MANAGED"
+      - "DISK/VCENTER_DS_REF"
+      - "DISK/VCENTER_INSTANCE_ID"
+      #- "DISK/SIZE"
+      - "DISK/ORIGINAL_SIZE"
+      - "DISK/SIZE_PREV"
+      - "DEPLOY_ID"
+      - "CPU_COST"
+      - "MEMORY_COST"
+      - "DISK_COST"
+      - "PCI"
+      - "EMULATOR"
+      - "RAW"
+      - "USER_PRIORITY"
+      - "USER_INPUTS/CPU"
+      - "USER_INPUTS/MEMORY"
+      - "USER_INPUTS/VCPU"
+      - "VCENTER_VM_FOLDER"
+      - "VCENTER_ESX_HOST"
+      - "TOPOLOGY/PIN_POLICY"
+      - "TOPOLOGY/HUGEPAGE_SIZE"
+      #- "RANK"
+      #- "SCHED_RANK"
+      #- "REQUIREMENTS"
+      #- "SCHED_REQUIREMENTS"
+
+  - name: 'image_restricted_attr'
+    value:
+      - 'SOURCE'
+      - 'VCENTER_IMPORTED'
+
+  - name: 'vnet_restricted_attr'
+    section_comment: |
+      The following restricted attributes only apply to VNets that are a reservation.
+      Normal VNets do not have restricted attributes.
+    value:
+      - "VN_MAD"
+      - "PHYDEV"
+      - "VLAN_ID"
+      - "BRIDGE"
+      - "CONF"
+      - "BRIDGE_CONF"
+      - "OVS_BRIDGE_CONF"
+      - "IP_LINK_CONF"
+      - "FILTER"
+      - "FILTER_IP_SPOOFING"
+      - "FILTER_MAC_SPOOFING"
+
+      - "AR/VN_MAD"
+      - "AR/PHYDEV"
+      - "AR/VLAN_ID"
+      - "AR/BRIDGE"
+      - "AR/FILTER"
+      - "AR/FILTER_IP_SPOOFING"
+      - "AR/FILTER_MAC_SPOOFING"
+
+      - "CLUSTER_IDS"
+
+      - "EXTERNAL"
+
+  - name: 'user_restricted_attr'
+    value:
+      - 'VM_USE_OPERATIONS'
+      - 'VM_MANAGE_OPERATIONS'
+      - 'VM_ADMIN_OPERATIONS'
+
+  - name: 'group_restricted_attr'
+    value:
+      - 'VM_USE_OPERATIONS'
+      - 'VM_MANAGE_OPERATIONS'
+      - 'VM_ADMIN_OPERATIONS'
+
+  - name: 'host_encrypted_attr'
+    section_comment_title: 'Encrypted Attributes Configuration'
+    section_comment: 'The following attributes are encrypted'
+    value:
+      - "EC2_ACCESS"
+      - "EC2_SECRET"
+      - "AZ_SUB"
+      - "AZ_CLIENT"
+      - "AZ_SECRET"
+      - "AZ_TENANT"
+      - "VCENTER_PASSWORD"
+      - "NSX_PASSWORD"
+      - "ONE_PASSWORD"
+      - 'PROVISION/PACKET_TOKEN'
+      - 'PROVISION/EC2_ACCESS'
+      - 'PROVISION/EC2_SECRET'
+
+  - name: 'vm_encrypted_attr'
+    value:
+      #- "PACKET_TOKEN"
+      #- "PROVISION/PACKET_TOKEN"
+      - "CONTEXT/PASSWORD"
+
+  - name: 'image_encrypted_attr'
+    value:
+      - 'LUKS_PASSWORD'
+
+  - name: 'vnet_encrypted_attr'
+    value:
+      #- 'PROVISION/PACKET_TOKEN'
+      - 'AR/PACKET_TOKEN'
+
+  - name: 'datastore_encrypted_attr'
+    value: 'PROVISION/PACKET_TOKEN'
+
+  - name: 'cluster_encrypted_attr'
+    value: 'PROVISION/PACKET_TOKEN'
+
+  - name: 'document_encrypted_attr'
+    comment: 'DDC encrypted attrs'
+    value: 'PROVISION_BODY'
+
+  - name: 'comment_inherited_attributes'
+    section_comment_title: 'Inherited Attributes Configuration'
+    section_comment: |
+      The following attributes will be copied from the resource template to the
+      instantiated VMs. More than one attribute can be defined.
+
+      INHERIT_IMAGE_ATTR: Attribute to be copied from the Image template
+      to each VM/DISK.
+
+      INHERIT_DATASTORE_ATTR: Attribute to be copied from the Datastore template
+      to each VM/DISK.
+
+      INHERIT_VNET_ATTR: Attribute to be copied from the Network template
+      to each VM/NIC.
+    state: 'hidden'
+
+  - name: 'inherit_datastore_attr'
+    separator: True
+    value:
+      - 'CEPH_HOST'
+      - 'CEPH_SECRET'
+      - 'CEPH_KEY'
+      - 'CEPH_USER'
+      - 'CEPH_CONF'
+      - 'CEPH_TRASH'
+      - 'POOL_NAME'
+
+      - 'ISCSI_USER'
+      - 'ISCSI_USAGE'
+      - 'ISCSI_HOST'
+
+      - 'GLUSTER_HOST'
+      - 'GLUSTER_VOLUME'
+
+      - 'DISK_TYPE'
+      - 'ALLOW_ORPHANS'
+
+      - 'VCENTER_ADAPTER_TYPE'
+      - 'VCENTER_DISK_TYPE'
+      - 'VCENTER_DS_REF'
+      - 'VCENTER_DS_IMAGE_DIR'
+      - 'VCENTER_DS_VOLATILE_DIR'
+      - 'VCENTER_INASTANCE_IP'
+
+  - name: 'inherit_image_attr'
+    separator: True
+    value:
+      - 'ISCSI_USER'
+      - 'ISCSI_USAGE'
+      - 'ISCSI_HOST'
+      - 'ISCSI_IQN'
+
+      - 'DISK_TYPE'
+      - 'VCENTER_ADAPTER_TYPE'
+      - 'VCENTER_DISK_TYPE'
+
+  - name: 'inherit_vnet_attr'
+    separator: True
+    value:
+      - 'VLAN_TAGGED_ID'
+      - 'FILTER'
+      - 'FILTER_IP_SPOOFING'
+      - 'FILTER_MAC_SPOOFING'
+      - 'MTU'
+      - 'METRIC'
+      - 'INBOUND_AVG_BW'
+      - 'INBOUND_PEAK_BW'
+      - 'INBOUND_PEAK_KB'
+      - 'OUTBOUND_AVG_BW'
+      - 'OUTBOUND_PEAK_BW'
+      - 'OUTBOUND_PEAK_KB'
+      - 'CONF'
+      - 'BRIDGE_CONF'
+      - 'OVS_BRIDGE_CONF'
+      - 'IP_LINK_CONF'
+      - 'EXTERNAL'
+      - 'AWS_ALLOCATION_ID'
+      - 'GATEWAY'
+      - 'VXLAN_MODE'
+      - 'VXLAN_TEP'
+      - 'VXLAN_MC'
+
+      - 'VCENTER_NET_REF'
+      - 'VCENTER_SWITCH_NAME'
+      - 'VCENTER_SWITCH_NPORTS'
+      - 'VCENTER_PORTGROUP_TYPE'
+      - 'VCENTER_CCR_REF'
+      - 'VCENTER_INSTANCE_IP'
+
+  - name: 'comment_transfer_manager_config'
+    section_comment_title: 'Transfer Manager Driver Behavior Configuration'
+    section_comment: |
+      The configuration for each driver is defined in TM_MAD_CONF. These
+      values are used when creating a new datastore and should not be modified
+      since they define the datastore behavior.
+        name      : name of the transfer driver, listed in the -d option of the
+                    TM_MAD section
+        ln_target : determines how the persistent images will be cloned when
+                    a new VM is instantiated.
+            NONE: The image will be linked and no more storage capacity will be used
+            SELF: The image will be cloned in the Images datastore
+            SYSTEM: The image will be cloned in the System datastore
+        clone_target : determines how the non persistent images will be
+                       cloned when a new VM is instantiated.
+            NONE: The image will be linked and no more storage capacity will be used
+            SELF: The image will be cloned in the Images datastore
+            SYSTEM: The image will be cloned in the System datastore
+        shared : determines if the storage holding the system datastore is shared
+                 among the different hosts or not. Valid values: "yes" or "no"
+        ds_migrate : The driver allows migrations across datastores. Valid values:
+                    "yes" or "no". Note: THIS ONLY APPLIES TO SYSTEM DS.
+        allow_orphans: Snapshots can live without parents. Suported values:
+             YES: Children can be orphan (no parent snapshot)
+              |- snap_1
+              |- snap_2
+              |- snap_3
+             NO: New snapshots are set active and child of the previous one
+              |- snap_1
+                 |- snap_2
+                    |- snap_3
+             MIXED: Snapshots are children of last snapshot reverted to
+              |- snap_1 (<--- revert)
+                 |- snap_3
+                 |- snap_4
+              |- snap_2
+    state: 'hidden'
+
+  - name: 'tm_mad_conf_dummy'
+    option: 'tm_mad_conf'
+    options:
+      - name: 'name'
+        value: 'dummy'
+      - 'ln_target': 'NONE'
+      - 'clone_target': 'SYSTEM'
+      - 'shared': 'YES'
+      - 'ds_migrate': 'YES'
+
+  - name: 'tm_mad_conf_lvm'
+    option: 'tm_mad_conf'
+    options:
+      - name: 'name'
+        value: 'lvm'
+      - 'ln_target': 'NONE'
+      - 'clone_target': 'SELF'
+      - 'shared': 'YES'
+
+  - name: 'tm_mad_conf_shared'
+    option: 'tm_mad_conf'
+    options:
+      - name: 'name'
+        value: 'shared'
+      - 'ln_target': 'NONE'
+      - 'clone_target': 'SYSTEM'
+      - 'shared': 'YES'
+      - 'ds_migrate': 'YES'
+      - 'tm_mad_system': 'ssh'
+      - 'ln_target_ssh': 'SYSTEM'
+      - 'clone_target_ssh': 'SYSTEM'
+      - 'disk_type_ssh': 'FILE'
+
+  - name: 'tm_mad_conf_fs_lvm'
+    option: 'tm_mad_conf'
+    options:
+      - name: 'name'
+        value: 'fs_lvm'
+      - 'ln_target': 'SYSTEM'
+      - 'clone_target': 'SYSTEM'
+      - 'shared': 'YES'
+      - 'driver': 'raw'
+
+  - name: 'tm_mad_conf_qcow2'
+    option: 'tm_mad_conf'
+    options:
+      - name: 'name'
+        value: 'qcow2'
+      - 'ln_target': 'NONE'
+      - 'clone_target': 'SYSTEM'
+      - 'shared': 'YES'
+      - 'ds_migrate': 'YES'
+      - 'tm_mad_system': 'ssh'
+      - 'ln_target_ssh': 'SYSTEM'
+      - 'clone_target_ssh': 'SYSTEM'
+      - 'disk_type_ssh': 'FILE'
+      - 'driver': 'qcow2'
+
+  - name: 'tm_mad_conf_ssh'
+    option: 'tm_mad_conf'
+    options:
+      - name: 'name'
+        value: 'ssh'
+      - 'ln_target': 'SYSTEM'
+      - 'clone_target': 'SYSTEM'
+      - 'shared': 'NO'
+      - 'ds_migrate': 'YES'
+
+  - name: 'tm_mad_conf_ceph'
+    option: 'tm_mad_conf'
+    options:
+      - name: 'name'
+        value: 'ceph'
+      - 'ln_target': 'NONE'
+      - 'clone_target': 'SELF'
+      - 'shared': 'YES'
+      - 'ds_migrate': 'NO'
+      - 'driver': 'raw'
+      - 'allow_orphans': 'mixed'
+      - 'tm_mad_system': 'ssh,shared'
+      - 'ln_target_ssh': 'SYSTEM'
+      - 'clone_target_ssh': 'SYSTEM'
+      - 'disk_type_ssh': 'FILE'
+      - 'ln_target_shared': 'NONE'
+      - 'clone_target_shared': 'SELF'
+      - 'disk_type_shared': 'RBD'
+
+  - name: 'tm_mad_conf_iscsi_libvirt'
+    option: 'tm_mad_conf'
+    options:
+      - name: 'name'
+        value: 'iscsi_libvirt'
+      - 'ln_target': 'NONE'
+      - 'clone_target': 'SELF'
+      - 'shared': 'YES'
+      - 'ds_migrate': 'NO'
+
+  - name: 'tm_mad_conf_dev'
+    option: 'tm_mad_conf'
+    options:
+      - name: 'name'
+        value: 'dev'
+      - 'ln_target': 'NONE'
+      - 'clone_target': 'NONE'
+      - 'shared': 'YES'
+      - 'tm_mad_system': 'ssh,shared'
+      - 'ln_target_ssh': 'SYSTEM'
+      - 'ln_target_shared': 'NONE'
+      - 'disk_type_ssh': 'FILE'
+      - 'disk_type_shared': 'FILE'
+      - 'clone_target_ssh': 'SYSTEM'
+      - 'clone_target_shared': 'SELF'
+
+  - name: 'tm_mad_conf_vcenter'
+    option: 'tm_mad_conf'
+    options:
+      - name: 'name'
+        value: 'vcenter'
+      - 'ln_target': 'NONE'
+      - 'clone_target': 'SYSTEM'
+      - 'shared': 'YES'
+
+  - name: 'comment_datastore_manager_config'
+    section_comment_title: 'Datastore Manager Driver Behavior Configuration'
+    section_comment: |
+      The configuration for each driver is defined in DS_MAD_CONF. These
+      values are used when creating a new datastore and should not be modified
+      since they define the datastore behavior.
+        name      : name of the transfer driver, listed in the -d option of the
+                    DS_MAD section
+        required_attrs : comma separated list of required attributes in the DS
+                         template
+        persistent_only: specifies whether the datastore can only manage persistent
+                         images
+    state: 'hidden'
+
+  - name: 'ds_mad_conf_ceph'
+    option: 'ds_mad_conf'
+    options:
+      - name: 'name'
+        value: 'ceph'
+      - 'required_attrs': 'DISK_TYPE,BRIDGE_LIST'
+      - 'persistent_only': 'NO'
+      - 'marketplace_actions': 'export'
+
+  - name: 'ds_mad_conf_dev'
+    option: 'ds_mad_conf'
+    options:
+      - name: 'name'
+        value: 'dev'
+      - 'required_attrs': 'DISK_TYPE'
+      - 'persistent_only': 'YES'
+
+  - name: 'ds_mad_conf_iscsi_libvirt'
+    option: 'ds_mad_conf'
+    options:
+      - name: 'name'
+        value: 'iscsi_libvirt'
+      - 'required_attrs': 'DISK_TYPE,ISCSI_HOST'
+      - 'persistent_only': 'YES'
+
+  - name: 'ds_mad_conf_dummy'
+    option: 'ds_mad_conf'
+    options:
+      - name: 'name'
+        value: 'dummy'
+      - 'required_attrs': ''
+      - 'persistent_only': 'NO'
+
+  - name: 'ds_mad_conf_fs'
+    option: 'ds_mad_conf'
+    options:
+      - name: 'name'
+        value: 'fs'
+      - 'required_attrs': ''
+      - 'persistent_only': 'NO'
+      - 'marketplace_actions': 'export'
+
+  - name: 'ds_mad_conf_lvm'
+    option: 'ds_mad_conf'
+    options:
+      - name: 'name'
+        value: 'lvm'
+      - 'required_attrs': 'DISK_TYPE,BRIDGE_LIST'
+      - 'persistent_only': 'NO'
+
+  - name: 'ds_mad_conf_vcenter'
+    option: 'ds_mad_conf'
+    options:
+      - name: 'name'
+        value: 'vcenter'
+      - 'required_attrs': 'VCENTER_INSTANCE_ID,VCENTER_DS_REF,VCENTER_DC_REF'
+      - 'persistent_only': 'NO'
+      - 'marketplace_actions': 'export'
+
+  - name: 'comment_marketplace_driver_config'
+    section_comment_title: 'MarketPlace Driver Behavior Configuration'
+    section_comment: |
+      The configuration for each driver is defined in MARKET_MAD_CONF. These
+      values are used when creating a new marketplaces and should not be modified
+      since they define the marketplace behavior.
+        name      : name of the market driver
+        required_attrs : comma separated list of required attributes in the Market
+                         template
+        app_actions: List of actions allowed for a MarketPlaceApp
+          - monitor The apps of the marketplace will be monitored
+          - create, the app in the marketplace
+          - delete, the app from the marketplace
+        public: set to yes for external marketplaces. A public marketplace can be
+        removed even if it has registered apps.
+    state: 'hidden'
+
+  - name: 'market_mad_conf_one'
+    option: 'market_mad_conf'
+    options:
+      - name: 'name'
+        value: 'one'
+      - 'sunstone_name': 'OpenNebula.org Marketplace'
+      - 'required_attrs': ''
+      - 'app_actions': 'monitor'
+      - 'public': True
+
+  - name: 'market_mad_conf_http'
+    option: 'market_mad_conf'
+    options:
+      - name: 'name'
+        value: 'http'
+      - 'sunstone_name': 'HTTP server'
+      - 'required_attrs': 'BASE_URL,PUBLIC_DIR'
+      - 'app_actions': 'create, delete, monitor'
+
+  - name: 'market_mad_conf_s3'
+    option: 'market_mad_conf'
+    options:
+      - name: 'name'
+        value: 's3'
+      - 'sunstone_name': 'Amazon S3'
+      - 'required_attrs': 'ACCESS_KEY_ID,SECRET_ACCESS_KEY,REGION,BUCKET'
+      - 'app_actions': 'create, delete, monitor'
+
+  - name: 'market_mad_conf_linuxcontainers'
+    option: 'market_mad_conf'
+    options:
+      - name: 'name'
+        value: 'linuxcontainers'
+      - 'sunstone_name': 'LinuxContainers.org'
+      - 'required_attrs': ''
+      - 'app_actions': 'monitor'
+      - 'public': True
+
+  - name: 'market_mad_conf_turnkeylinux'
+    option: 'market_mad_conf'
+    options:
+      - name: 'name'
+        value: 'turnkeylinux'
+      - 'sunstone_name': 'TurnkeyLinux'
+      - 'required_attrs': ''
+      - 'app_actions': 'monitor'
+      - 'public': True
+
+  - name: 'market_mad_conf_dockerhub'
+    option: 'market_mad_conf'
+    options:
+      - name: 'name'
+        value: 'dockerhub'
+      - 'sunstone_name': 'DockerHub'
+      - 'required_attrs': ''
+      - 'app_actions': 'monitor'
+      - 'public': True
+
+  - name: 'comment_authentication_driver_definition'
+    section_comment_title: 'Authentication Driver Behavior Definition'
+    section_comment: |
+      The configuration for each driver is defined in AUTH_MAD_CONF. These
+      values must not be modified since they define the driver behavior.
+        name            : name of the auth driver
+        password_change : allow the end users to change their own password. Oneadmin
+                          can still change other user's passwords
+        driver_managed_groups : allow the driver to set the user's group even after
+                          user creation. In this case addgroup, delgroup and chgrp
+                          will be disabled, with the exception of chgrp to one of
+                          the groups in the list of secondary groups
+        driver_managed_group_admin : when set to "NO" user needs to manage group
+                          admin membership manually; when "YES" group admin
+                          membership is managed by the auth driver
+                          (see ldap_auth.conf)
+        max_token_time  : limit the maximum token validity, in seconds. Use -1 for
+                          unlimited maximum, 0 to disable login tokens
+    state: 'hidden'
+
+  - name: 'auth_mad_conf_core'
+    option: 'auth_mad_conf'
+    options:
+      - name: 'name'
+        value: 'core'
+      - 'password_change': 'YES'
+      - 'driver_managed_groups': 'NO'
+      - 'driver_managed_group_admin': 'NO'
+      - 'max_token_time': '-1'
+
+  - name: 'auth_mad_conf_public'
+    option: 'auth_mad_conf'
+    options:
+      - name: 'name'
+        value: 'public'
+      - 'password_change': 'NO'
+      - 'driver_managed_groups': 'NO'
+      - 'driver_managed_group_admin': 'NO'
+      - 'max_token_time': '-1'
+
+  - name: 'auth_mad_conf_ssh'
+    option: 'auth_mad_conf'
+    options:
+      - name: 'name'
+        value: 'ssh'
+      - 'password_change': 'YES'
+      - 'driver_managed_groups': 'NO'
+      - 'driver_managed_group_admin': 'NO'
+      - 'max_token_time': '-1'
+
+  - name: 'auth_mad_conf_x509'
+    option: 'auth_mad_conf'
+    options:
+      - name: 'name'
+        value: 'x509'
+      - 'password_change': 'NO'
+      - 'driver_managed_groups': 'NO'
+      - 'driver_managed_group_admin': 'NO'
+      - 'max_token_time': '-1'
+
+  - name: 'auth_mad_conf_ldap'
+    option: 'auth_mad_conf'
+    options:
+      - name: 'name'
+        value: 'ldap'
+      - 'password_change': 'YES'
+      - 'driver_managed_groups': 'YES'
+      - 'driver_managed_group_admin': 'YES'
+      - 'max_token_time': '86400'
+
+  - name: 'auth_mad_conf_server_cipher'
+    option: 'auth_mad_conf'
+    options:
+      - name: 'name'
+        value: 'server_cipher'
+      - 'password_change': 'NO'
+      - 'driver_managed_groups': 'NO'
+      - 'driver_managed_group_admin': 'NO'
+      - 'max_token_time': '-1'
+
+  - name: 'auth_mad_conf_server_x509'
+    option: 'auth_mad_conf'
+    options:
+      - name: 'name'
+        value: 'server_x509'
+      - 'password_change': 'NO'
+      - 'driver_managed_groups': 'NO'
+      - 'driver_managed_group_admin': 'NO'
+      - 'max_token_time': '-1'
+
+  - name: 'comment_virtual_network_driver_definition'
+    section_comment_title: 'Virtual Network Driver Behavior Definition'
+    section_comment: |
+      The configuration for each driver is defined in VN_MAD_CONF. These
+      values must not be modified since they define the driver behavior.
+        name        : name of the auth driver
+        BRIDGE_TYPE : define the technology used by the driver
+    state: 'hidden'
+
+  - name: 'vn_mad_conf_dummy'
+    option: 'vn_mad_conf'
+    options:
+      - name: 'name'
+        value: 'dummy'
+      - 'bridge_type': 'linux'
+
+  - name: 'vn_mad_conf_802.1Q'
+    option: 'vn_mad_conf'
+    options:
+      - name: 'name'
+        value: '802.1Q'
+      - 'bridge_type': 'linux'
+
+  - name: 'vn_mad_conf_ebtables'
+    option: 'vn_mad_conf'
+    options:
+      - name: 'name'
+        value: 'ebtables'
+      - 'bridge_type': 'linux'
+
+  - name: 'vn_mad_conf_fw'
+    option: 'vn_mad_conf'
+    options:
+      - name: 'name'
+        value: 'fw'
+      - 'bridge_type': 'linux'
+
+  - name: 'vn_mad_conf_ovswitch'
+    option: 'vn_mad_conf'
+    options:
+      - name: 'name'
+        value: 'ovswitch'
+      - 'bridge_type': 'openvswitch'
+
+  - name: 'vn_mad_conf_vxlan'
+    option: 'vn_mad_conf'
+    options:
+      - name: 'name'
+        value: 'vxlan'
+      - 'bridge_type': 'linux'
+
+  - name: 'vn_mad_conf_vcenter'
+    option: 'vn_mad_conf'
+    options:
+      - name: 'name'
+        value: 'vcenter'
+      - 'bridge_type': 'vcenter_port_groups'
+
+  - name: 'vn_mad_conf_ovswitch_vxlan'
+    option: 'vn_mad_conf'
+    options:
+      - name: 'name'
+        value: 'ovswitch_vxlan'
+      - 'bridge_type': 'openvswitch'
+
+  - name: 'vn_mad_conf_bridge'
+    option: 'vn_mad_conf'
+    options:
+      - name: 'name'
+        value: 'bridge'
+      - 'bridge_type': 'linux'
+
+one_core__oned_default_configuration:
+
+  - name: 'db-sqlite'
+    state: 'comment'
+
+  - name: 'db-mysql'
+    comment: 'Database for production deployment'
+    state: 'present'
+    options:
+      - 'server': '{{ one_core__database_server }}'
+      - 'user': '{{ one_core__database_user }}'
+      - 'db_name': '{{ one_core__database_name }}'
+      - 'passwd': '{{ one_core__database_password }}'
+
+one_core__oned_configuration: []
+
+one_core__oned_group_configuration: []
+
+one_core__oned_host_configuration: []
+
+one_core__oned_combined_configuration: '{{ one_core__oned_original_configuration
+                                           + one_core__oned_default_configuration
+                                           + one_core__oned_configuration
+                                           + one_core__oned_group_configuration
+                                           + one_core__oned_host_configuration }}'

@@ -1,0 +1,30 @@
+---
+# Copyright (C) 2021 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2021 DebOps <https://debops.org/>
+# SPDX-License-Identifier: GPL-3.0-only
+
+# Configure common OpenNebula environment
+- import_playbook: 'opennebula.yml'
+
+# Configure KVM/libvirt environment
+- import_playbook: 'libvirtd.yml'
+- import_playbook: 'libvirt.yml'
+
+# Configure LXC environment
+- import_playbook: 'lxc.yml'
+
+
+- name: Manage OpenNebula KVM Node
+  collections: [ 'debops.debops', 'debops.roles01',
+                 'debops.roles02', 'debops.roles03' ]
+  hosts: [ 'debops_service_one_node' ]
+  become: True
+
+  environment: '{{ inventory__environment | d({})
+                   | combine(inventory__group_environment | d({}))
+                   | combine(inventory__host_environment  | d({})) }}'
+
+  roles:
+
+    - role: one_node
+      tags: [ 'role::one_node', 'skip::one_node' ]
