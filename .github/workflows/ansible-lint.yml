@@ -14,4 +14,4 @@ jobs:
         # Use @main due https://github.com/ansible/ansible-lint/discussions/1403#discussioncomment-2654415
         uses: ansible-community/ansible-lint-action@main
         with:
-          path: ''
+          path: '--show-relpath'
