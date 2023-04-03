@@ -1,11 +1,10 @@
 ---
 # Copyright (C) 2016-2017 Robin Schneider <ypid@riseup.net>
-# Copyright (C) 2016-2017 DebOps <https://debops.org/>
+# Copyright (C) 2023      Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2016-2023 DebOps <https://debops.org/>
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Manage and configure the Apache HTTP Server
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
   hosts: [ 'debops_service_apache' ]
   become: True
 
@@ -13,20 +12,24 @@
                    | combine(inventory__group_environment | d({}))
                    | combine(inventory__host_environment  | d({})) }}'
 
-  pre_tasks:
+  vars:
+    ferm__dependent_rules:
+      - '{{ apache__ferm__dependent_rules }}'
+
+  tasks:
 
     - name: Prepare apache environment
       ansible.builtin.import_role:
-        name: 'apache'
+        name: 'debops.debops.apache'
         tasks_from: 'main_env'
       tags: [ 'role::apache', 'role::apache:env' ]
 
-  roles:
-
-    - role: ferm
+    - name: Configure ferm firewall
+      ansible.builtin.import_role:
+        name: 'debops.debops.ferm'
       tags: [ 'role::ferm', 'skip::ferm' ]
-      ferm__dependent_rules:
-        - '{{ apache__ferm__dependent_rules }}'
 
-    - role: apache
+    - name: Install and configure Apache
+      ansible.builtin.import_role:
+        name: 'debops.debops.apache'
       tags: [ 'role::apache', 'skip::apache' ]

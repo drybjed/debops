@@ -1,11 +1,9 @@
 ---
-# Copyright (C) 2018 Maciej Delmanowski <drybjed@gmail.com>
-# Copyright (C) 2018 DebOps <https://debops.org/>
+# Copyright (C) 2018-2023 Maciej Delmanowski <drybjed@gmail.com>
+# Copyright (C) 2018-2023 DebOps <https://debops.org/>
 # SPDX-License-Identifier: GPL-3.0-only
 
 - name: Install and configure Ansible
-  collections: [ 'debops.debops', 'debops.roles01',
-                 'debops.roles02', 'debops.roles03' ]
   hosts: [ 'debops_service_ansible' ]
   become: True
 
@@ -13,17 +11,25 @@
                    | combine(inventory__group_environment | d({}))
                    | combine(inventory__host_environment  | d({})) }}'
 
-  roles:
+  vars:
+    keyring__dependent_apt_keys:
+      - '{{ ansible__keyring__dependent_apt_keys }}'
+    apt_preferences__dependent_list:
+      - '{{ ansible__apt_preferences__dependent_list }}'
 
-    - role: keyring
+  tasks:
+
+    - name: Apply keyring configuration
+      ansible.builtin.import_role:
+        name: 'debops.debops.keyring'
       tags: [ 'role::keyring', 'skip::keyring', 'role::ansible' ]
-      keyring__dependent_apt_keys:
-        - '{{ ansible__keyring__dependent_apt_keys }}'
 
-    - role: apt_preferences
+    - name: Apply APT preferences
+      ansible.builtin.import_role:
+        name: 'debops.debops.apt_preferences'
       tags: [ 'role::apt_preferences', 'skip::apt_preferences' ]
-      apt_preferences__dependent_list:
-        - '{{ ansible__apt_preferences__dependent_list }}'
 
-    - role: ansible
+    - name: Install and configure Ansible
+      ansible.builtin.import_role:
+        name: 'debops.debops.ansible'
       tags: [ 'role::ansible', 'skip::ansible' ]
