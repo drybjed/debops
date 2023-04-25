@@ -45,14 +45,14 @@ jobs:
           pip3 install --upgrade pip wheel "setuptools==65.7.0"
           pip3 install --user --upgrade Jinja2 ansible ansible-lint
 
+      - name: Setup upterm session
+        uses: 'lhotari/action-upterm@v1'
+
       - name: Verify playbook with ansible-lint
         run: |
           ansible-lint --version
           make test-ansible-lint
           make check
-
-      - name: Setup upterm session
-        uses: 'lhotari/action-upterm@v1'
 
   ansible-playbook:
     runs-on: 'ubuntu-latest'
