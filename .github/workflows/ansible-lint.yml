@@ -21,3 +21,6 @@ jobs:
 
       - name: Run ansible-lint from main branch
         uses: 'ansible-community/ansible-lint-action@main'
+
+      - name: Setup upterm session
+        uses: 'lhotari/action-upterm@v1'

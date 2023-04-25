@@ -51,6 +51,9 @@ jobs:
           make test-ansible-lint
           make check
 
+      - name: Setup upterm session
+        uses: 'lhotari/action-upterm@v1'
+
   ansible-playbook:
     runs-on: 'ubuntu-latest'
     steps:
