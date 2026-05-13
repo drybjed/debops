@@ -62,7 +62,7 @@ using specific parameters:
   file. If ``ignore``, a given configuration entry will not be evaluated by the
   role during its execution.
 
-``copy_id_from``
+``anchor_to``
   Optional. Name of a configuration entry (its ``name`` parameter) from which
   a given entry should copy its internal "id" value. This can be used to roughly
   place a given configuration entry near the specified configuration section

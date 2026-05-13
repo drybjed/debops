@@ -108,7 +108,7 @@ Supported parameters are:
   Optional. String or YAML text block with comments about a given configuration
   option.
 
-``copy_id_from``
+``anchor_to``
   Optional. Copy the internal "id" of a configuration option specified by the
   ``name`` parameter to the current configuration option. This parameter can be
   used to reorder configuration options relative to a specific option.

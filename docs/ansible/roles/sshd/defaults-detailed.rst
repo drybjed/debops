@@ -72,12 +72,12 @@ Configure SSH daemon to listen on additional TCP ports for network connections:
      - name: 'Port_2222'
        option: 'Port'
        value: 2222
-       copy_id_from: 'Port'
+       anchor_to: 'Port'
 
      - name: 'Port_3322'
        option: 'Port'
        value: 3322
-       copy_id_from: 'Port'
+       anchor_to: 'Port'
 
 Alternatively, you can specify a list of TCP ports using the
 :envvar:`sshd__ports` variable which will generate the corresponding
@@ -187,7 +187,7 @@ parameters:
   positive number resulting in an option being moved "down" in the generated
   config file.
 
-``copy_id_from``
+``anchor_to``
   Optional. Name of a configuration entry (``name`` parameter), which should be
   used as an "anchor" for a given entry. This parameter can be used to group
   related configuration options together - for example multiple ``Port``

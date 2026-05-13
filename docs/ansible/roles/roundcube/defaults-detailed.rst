@@ -211,7 +211,7 @@ the final output:
   :ref:`roundcube__ref_configuration_sections` variables. If not defined, the
   configuration option will be put into the ``unknown`` section.
 
-``copy_id_from``
+``anchor_to``
   Optional. Copy the internal "id" of a configuration option specified by the
   ``name`` parameter to the current configuration option. This parameter can be
   used to reorder configuration options relative to a specific option.

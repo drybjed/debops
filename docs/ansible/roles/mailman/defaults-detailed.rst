@@ -233,7 +233,7 @@ Each configuration option is defined as a YAML dictionary with specific paramete
   during role execution. If ``comment``, the option will be present in the
   configuration file, but commented out.
 
-``copy_id_from``
+``anchor_to``
   Optional. Specify the ``name`` parameter of a different configuration option;
   the configuration entry with this parameter will copy the internal "id" value
   of the specified configuration entry. This can be used to reorder
